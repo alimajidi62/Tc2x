@@ -18,7 +18,7 @@
     <stringAttribute key="org.eclipse.cdt.launch.DEBUGGER_ID" value="IConnectDebugger.winIdea"/>
     <booleanAttribute key="org.eclipse.cdt.launch.DEBUGGER_STOP_AT_MAIN" value="true"/>
     <stringAttribute key="org.eclipse.cdt.launch.DEBUGGER_STOP_AT_MAIN_SYMBOL" value="core0_main"/>
-    <stringAttribute key="org.eclipse.cdt.launch.PROGRAM_NAME" value="TriCore Debug (GCC)/test2.elf"/>
+    <stringAttribute key="org.eclipse.cdt.launch.PROGRAM_NAME" value="C:\dev\Green\Aurix\Tc2x\Test2\TriCore Debug (GCC)\test2.elf"/>
     <stringAttribute key="org.eclipse.cdt.launch.PROJECT_ATTR" value="test2"/>
     <booleanAttribute key="org.eclipse.cdt.launch.PROJECT_BUILD_CONFIG_AUTO_ATTR" value="true"/>
     <stringAttribute key="org.eclipse.cdt.launch.PROJECT_BUILD_CONFIG_ID_ATTR" value="com.infineon.aurix.buildsystem.managed.external.gcc.builtin.configuration.debug.1587254697"/>
