@@ -53,14 +53,40 @@
  */
 #define BLINK_TICKS  50000000UL
 
+/*
+ * WDT_RELOAD: reload value for CPU0 watchdog (16-bit up-counter, overflows at 0x10000).
+ *
+ * Timeout = (0x10000 - WDT_RELOAD) / f_WDT
+ *   f_WDT  = fSPB / 16384 = 100 MHz / 16384 ~= 6104 Hz  (T ~= 163.84 us/tick)
+ *   0x8000 => (0x10000 - 0x8000) = 32768 ticks => ~5369 ms (~21 blinks at 250 ms each)
+ *   0xC000 => (0x10000 - 0xC000) = 16384 ticks => ~2684 ms (~10 blinks)
+ *   0x0000 => (0x10000 - 0x0000) = 65536 ticks => ~10737 ms (~42 blinks)
+ *
+ * Rule: timeout must be larger than the worst-case while(1) iteration time.
+ */
+#define WDT_RELOAD   0x8000U
+
 IfxCpu_syncEvent cpuSyncEvent = 0;
+
+/* Counts every LED toggle.  Resets to 0 on any hardware reset (incl. WDT).
+ * Watch this in the debugger: if the WDT fires you will see it jump back to 0. */
+volatile uint32 blinkCount = 0;
 
 void core0_main(void)
 {
-    uint8 pin;
+    uint8  pin;
+    uint16 wdtPassword;
 
     IfxCpu_enableInterrupts();
-    IfxScuWdt_disableCpuWatchdog(IfxScuWdt_getCpuWatchdogPassword());
+
+    /* Read CPU0 watchdog password — keep the watchdog ENABLED (do not disable it) */
+    wdtPassword = IfxScuWdt_getCpuWatchdogPassword();
+
+    /* Default REL=0xFFFC gives only ~655 us timeout — far too short for a 250ms loop.
+     * Change reload to WDT_RELOAD (0xC000) => ~2684 ms timeout. */
+    IfxScuWdt_changeCpuWatchdogReload(wdtPassword, WDT_RELOAD);
+
+    /* Safety watchdog is not used in this example — disable it */
     IfxScuWdt_disableSafetyWatchdog(IfxScuWdt_getSafetyWatchdogPassword());
 
     /* Configure P33.6 - P33.13 as push-pull outputs */
@@ -76,6 +102,9 @@ void core0_main(void)
 
     while(1)
     {
+        /* Service (kick) CPU0 watchdog — must be called before the timer expires */
+        IfxScuWdt_serviceCpuWatchdog(wdtPassword);
+
         IfxStm_waitTicks(&MODULE_STM0, BLINK_TICKS);
 
         /* Toggle all 8 LEDs at once */
@@ -83,5 +112,7 @@ void core0_main(void)
         {
             IfxPort_togglePin(&MODULE_P33, pin);
         }
+
+        blinkCount++;   /* increments every toggle; resets to 0 on WDT/HW reset */
     }
 }

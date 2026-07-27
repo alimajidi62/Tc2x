@@ -75,3 +75,5 @@ Test2/Libraries/iLLD/TC29B/Tricore/_Build
 *.pptx
 *.xls
 *.xlsx
+*.hex
+*.lst
