@@ -107,12 +107,17 @@ void core0_main(void)
 
         IfxStm_waitTicks(&MODULE_STM0, BLINK_TICKS);
 
-        /* Toggle all 8 LEDs at once */
-        for (pin = 6; pin <= 13; pin++)
+        /* Display blinkCount as 8-bit binary on LEDs (active-low: LOW=ON, HIGH=OFF).
+         * P33.6 = bit0 (LSB) ... P33.13 = bit7 (MSB).
+         * Counter wraps 0-255 then repeats. */
+        for (pin = 0; pin < 8; pin++)
         {
-            IfxPort_togglePin(&MODULE_P33, pin);
+            if (blinkCount & (1u << pin))
+                IfxPort_setPinLow(&MODULE_P33,  pin + 6);   /* bit set   → LED ON  */
+            else
+                IfxPort_setPinHigh(&MODULE_P33, pin + 6);   /* bit clear → LED OFF */
         }
 
-        blinkCount++;   /* increments every toggle; resets to 0 on WDT/HW reset */
+        blinkCount = (blinkCount + 1u) & 0xFFu;  /* 0-255 counter, resets to 0 on WDT/HW reset */
     }
 }
