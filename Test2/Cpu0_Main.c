@@ -51,7 +51,7 @@
  *   At 100 MHz STM => 500 ms per toggle
  *   At 200 MHz STM => 250 ms per toggle
  */
-#define BLINK_TICKS  50000000UL
+#define BLINK_TICKS  20000000UL
 
 /*
  * WDT_RELOAD: reload value for CPU0 watchdog (16-bit up-counter, overflows at 0x10000).
