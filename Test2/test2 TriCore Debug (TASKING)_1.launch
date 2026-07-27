@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<launchConfiguration type="com.rt.hightec.agent.launcher.launchConfigurationType">
+    <stringAttribute key="ACC_HW" value="DAS JDS TriBoard TC2X7 V1.0 TBXTK46F"/>
+    <booleanAttribute key="ENABLE_AGENTLOG" value="false"/>
+    <booleanAttribute key="ENABLE_FLASHING" value="true"/>
+    <booleanAttribute key="ENABLE_STOPPING" value="true"/>
+    <stringAttribute key="EXECUTABLE_PATH" value="${workspace_loc}/test2/TriCore Debug (TASKING)/test2.elf"/>
+    <stringAttribute key="STOP_FUNCTION" value="core0_main"/>
+    <stringAttribute key="SVD" value="C:/Infineon/AURIX-Studio-1.10.36/build_system/bundled-artefacts-repo/svd/tc29xbpd/1.2-3/device.svd"/>
+    <stringAttribute key="org.eclipse.cdt.launch.PROJECT_ATTR" value="test2"/>
+    <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_PATHS">
+        <listEntry value="/test2"/>
+    </listAttribute>
+    <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_TYPES">
+        <listEntry value="4"/>
+    </listAttribute>
+    <stringAttribute key="org.eclipse.debug.ui.ATTR_LOCATION" value="/test2/test2 TriCore Debug (TASKING)_1.launch"/>
+    <stringAttribute key="org.eclipse.debug.ui.ATTR_PROJECT_NAME" value="test2"/>
+    <booleanAttribute key="org.eclipse.debug.ui.ATTR_SHARED" value="true"/>
+    <stringAttribute key="org.eclipse.tcf.debug.MemoryMap" value="[{&quot;FileName&quot;:&quot;C:/dev/Green/Aurix/test2/TriCore Debug (TASKING)/test2.elf&quot;,&quot;ID&quot;:&quot;/DAS JDS TriBoard TC2X7 V1.0 TBXTK46F/Core 2: CPU2 TriCore 1.6P&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;f94b8108-aff9-41fd-927f-2558571409d7&quot;},{&quot;FileName&quot;:&quot;C:/dev/Green/Aurix/test2/TriCore Debug (TASKING)/test2.elf&quot;,&quot;ID&quot;:&quot;/DAS JDS TriBoard TC2X7 V1.0 TBXTK46F/Core 2: CPU2 TriCore 1.6P&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;d7ed5851-a504-4274-8f76-571adde4283a&quot;},{&quot;FileName&quot;:&quot;C:/dev/Green/Aurix/test2/TriCore Debug (TASKING)/test2.elf&quot;,&quot;ID&quot;:&quot;/DAS JDS TriBoard TC2X7 V1.0 TBXTK46F/Core 2: CPU2 TriCore 1.6P&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;3664a7a7-9dc5-4c4e-999d-e0af738186ed&quot;},{&quot;FileName&quot;:&quot;C:/dev/Green/Aurix/test2/TriCore Debug (TASKING)/test2.elf&quot;,&quot;ID&quot;:&quot;/DAS JDS TriBoard TC2X7 V1.0 TBXTK46F/Core 0: CPU0 TriCore 1.6P&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;094df4bd-4597-4bac-b7fc-6b62cd452810&quot;},{&quot;FileName&quot;:&quot;C:/dev/Green/Aurix/test2/TriCore Debug (TASKING)/test2.elf&quot;,&quot;ID&quot;:&quot;/DAS JDS TriBoard TC2X7 V1.0 TBXTK46F/Core 2: CPU2 TriCore 1.6P&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;06246c28-779c-4133-a444-ee66806b1bab&quot;},{&quot;FileName&quot;:&quot;C:/dev/Green/Aurix/test2/TriCore Debug (TASKING)/test2.elf&quot;,&quot;ID&quot;:&quot;/DAS JDS TriBoard TC2X7 V1.0 TBXTK46F/Core 0: CPU0 TriCore 1.6P&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;8564c01a-9aec-4fda-bf78-80b70845b854&quot;},{&quot;FileName&quot;:&quot;C:/dev/Green/Aurix/test2/TriCore Debug (TASKING)/test2.elf&quot;,&quot;ID&quot;:&quot;/DAS JDS TriBoard TC2X7 V1.0 TBXTK46F/Core 2: CPU2 TriCore 1.6P&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;de31ade5-f169-458e-8089-7a3f69988515&quot;},{&quot;FileName&quot;:&quot;C:/dev/Green/Aurix/test2/TriCore Debug (TASKING)/test2.elf&quot;,&quot;ID&quot;:&quot;/DAS JDS TriBoard TC2X7 V1.0 TBXTK46F/Core 0: CPU0 TriCore 1.6P&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;83e85204-080a-4734-b4ff-f9b385239b15&quot;},{&quot;FileName&quot;:&quot;C:/dev/Green/Aurix/test2/TriCore Debug (TASKING)/test2.elf&quot;,&quot;ID&quot;:&quot;/DAS JDS TriBoard TC2X7 V1.0 TBXTK46F/Core 1: CPU1 TriCore 1.6P&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;b58576fe-6242-4d79-9ab9-a3d65f29f6b2&quot;},{&quot;FileName&quot;:&quot;C:/dev/Green/Aurix/test2/TriCore Debug (TASKING)/test2.elf&quot;,&quot;ID&quot;:&quot;/DAS JDS TriBoard TC2X7 V1.0 TBXTK46F/Core 2: CPU2 TriCore 1.6P&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;b1e7bf60-0f02-4d28-b670-6c4dff9320cc&quot;},{&quot;FileName&quot;:&quot;C:/dev/Green/Aurix/test2/TriCore Debug (TASKING)/test2.elf&quot;,&quot;ID&quot;:&quot;/DAS JDS TriBoard TC2X7 V1.0 TBXTK46F/Core 0: CPU0 TriCore 1.6P&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;6c88c80d-1ae2-4785-920c-9189970c1eec&quot;},{&quot;FileName&quot;:&quot;C:/dev/Green/Aurix/test2/TriCore Debug (TASKING)/test2.elf&quot;,&quot;ID&quot;:&quot;/DAS JDS TriBoard TC2X7 V1.0 TBXTK46F/Core 1: CPU1 TriCore 1.6P&quot;,&quot;Flags&quot;:0,&quot;UUID&quot;:&quot;0bac2db4-42e3-407d-94fa-d992aec1599f&quot;}]"/>
+    <stringAttribute key="org.eclipse.tcf.debug.PeerID" value="TCP:127.0.0.1:1534"/>
+    <stringAttribute key="org.eclipse.tcf.debug.ProjectName" value="test2"/>
+    <booleanAttribute key="org.eclipse.tcf.debug.RunLocalAgent" value="false"/>
+    <booleanAttribute key="org.eclipse.tcf.debug.RunLocalServer" value="false"/>
+    <booleanAttribute key="org.eclipse.tcf.debug.UseLocalAgent" value="false"/>
+    <stringAttribute key="org.eclipse.tcf.debug.executable_name" value="${workspace_loc}/test2/TriCore Debug (TASKING)/test2.elf"/>
+    <stringAttribute key="sessionID" value="ae0df348-5dee-433d-a9db-79adf604e221"/>
+</launchConfiguration>
