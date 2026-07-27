@@ -31,47 +31,87 @@
 #include "Stm/Std/IfxStm.h"
 
 /*
- * LED PORT SCANNER - finds the correct LED pin automatically.
- * Each candidate port pin is toggled 3 times with 1 s pauses.
- * Watch which physical LED blinks, note the port printed on the PCB,
- * then tell the port name so the final code can be written.
- *
- * Candidates tested (all active-low, i.e. LOW = ON):
- *   P10.2  (TC275 TriBoard SB)
- *   P20.11, P20.12, P20.13, P20.14  (TC3X7 TriBoard D306-D309)
- *   P33.4,  P33.5,  P33.6,  P33.7   (TC3X7 TriBoard D302-D305)
- *   P13.0,  P13.1,  P13.2,  P13.3   (Application Kit D107-D110)
- */
-
-/*
  * TriBoard TC2X7 V1.0 - 8 user LEDs (active LOW: LOW=ON, HIGH=OFF)
- * All on PORT 33: pins 6, 7, 8, 9, 10, 11, 12, 13
+ * All on PORT 33: pins 6 (LSB) ... 13 (MSB)
  *
- * BLINK_TICKS = 50 000 000 STM ticks (no frequency calculation needed):
- *   At 100 MHz STM => 500 ms per toggle
- *   At 200 MHz STM => 250 ms per toggle
+ * BLINK_TICKS: STM ticks between LED counter steps.
+ *   At 200 MHz STM => 20 000 000 ticks = 100 ms per step
  */
 #define BLINK_TICKS  20000000UL
 
 /*
- * WDT_RELOAD: reload value for CPU0 watchdog (16-bit up-counter, overflows at 0x10000).
- *
- * Timeout = (0x10000 - WDT_RELOAD) / f_WDT
- *   f_WDT  = fSPB / 16384 = 100 MHz / 16384 ~= 6104 Hz  (T ~= 163.84 us/tick)
- *   0x8000 => (0x10000 - 0x8000) = 32768 ticks => ~5369 ms (~21 blinks at 250 ms each)
- *   0xC000 => (0x10000 - 0xC000) = 16384 ticks => ~2684 ms (~10 blinks)
- *   0x0000 => (0x10000 - 0x0000) = 65536 ticks => ~10737 ms (~42 blinks)
- *
- * Rule: timeout must be larger than the worst-case while(1) iteration time.
+ * WDT_RELOAD: CPU0 watchdog reload (16-bit up-counter, overflows at 0x10000).
+ *   f_WDT = fSPB/16384 = 100 MHz/16384 ~= 6104 Hz  (T ~= 163.84 us/tick)
+ *   0x8000 => 32768 ticks => ~5369 ms  (well above the 100 ms ISR period)
  */
 #define WDT_RELOAD   0x8000U
 
-IfxCpu_syncEvent cpuSyncEvent = 0;
+/* STM0 comparator interrupt priority (1-255, must be unique in the system) */
+#define STM0_ISR_PRIO  10
 
-/* Counts every LED toggle.  Resets to 0 on any hardware reset (incl. WDT).
- * Watch this in the debugger: if the WDT fires you will see it jump back to 0. */
+/* -------------------------------------------------------------------------
+ * Globals
+ * ---------------------------------------------------------------------- */
+IfxCpu_syncEvent      cpuSyncEvent = 0;
+static IfxStm_CompareConfig stmConfig;
+
+/* Binary counter displayed on LEDs. Resets to 0 on any HW reset (incl. WDT).
+ * Visible in the debugger Watch window as symbol 'blinkCount'. */
 volatile uint32 blinkCount = 0;
 
+/* -------------------------------------------------------------------------
+ * LED update — called from the STM ISR every BLINK_TICKS
+ * ---------------------------------------------------------------------- */
+static void updateLeds(void)
+{
+    uint8 pin;
+    /* Show blinkCount as 8-bit binary: P33.6 = bit0 (LSB), P33.13 = bit7 (MSB) */
+    for (pin = 0; pin < 8; pin++)
+    {
+        if (blinkCount & (1u << pin))
+            IfxPort_setPinLow(&MODULE_P33,  (uint8)(pin + 6));  /* bit set   -> LED ON  */
+        else
+            IfxPort_setPinHigh(&MODULE_P33, (uint8)(pin + 6));  /* bit clear -> LED OFF */
+    }
+    blinkCount = (blinkCount + 1u) & 0xFFu;  /* 0-255, wraps automatically */
+}
+
+/* -------------------------------------------------------------------------
+ * STM0 Compare-0 ISR  (fires every BLINK_TICKS ticks)
+ * ---------------------------------------------------------------------- */
+IFX_INTERRUPT(stm0Isr, 0, STM0_ISR_PRIO)
+{
+    /* Clear the compare flag so the interrupt line is de-asserted */
+    IfxStm_clearCompareFlag(&MODULE_STM0, stmConfig.comparator);
+
+    /* Schedule next interrupt relative to NOW (current STM value).
+     * Using getLower()+BLINK_TICKS instead of increaseCompare() means the ISR
+     * always recovers correctly after a debugger halt, because increaseCompare()
+     * adds to the old (possibly stale) compare value which may already be in
+     * the past, causing the next match to be missed until the 32-bit timer
+     * wraps (~21 seconds at 200 MHz). */
+    IfxStm_updateCompare(&MODULE_STM0, stmConfig.comparator,
+                         IfxStm_getLower(&MODULE_STM0) + BLINK_TICKS);
+
+    /* Update the LED binary counter */
+    updateLeds();
+}
+
+/* -------------------------------------------------------------------------
+ * STM0 interrupt initialisation
+ * ---------------------------------------------------------------------- */
+static void initStmInterrupt(void)
+{
+    IfxStm_initCompareConfig(&stmConfig);       /* fill with defaults           */
+    stmConfig.ticks           = BLINK_TICKS;    /* interrupt period             */
+    stmConfig.triggerPriority = STM0_ISR_PRIO;  /* must match IFX_INTERRUPT()   */
+    stmConfig.typeOfService   = IfxSrc_Tos_cpu0;/* route to CPU0                */
+    IfxStm_initCompare(&MODULE_STM0, &stmConfig);
+}
+
+/* -------------------------------------------------------------------------
+ * Core 0 entry point
+ * ---------------------------------------------------------------------- */
 void core0_main(void)
 {
     uint8  pin;
@@ -79,45 +119,31 @@ void core0_main(void)
 
     IfxCpu_enableInterrupts();
 
-    /* Read CPU0 watchdog password — keep the watchdog ENABLED (do not disable it) */
+    /* Keep CPU0 watchdog ENABLED — service it in the while(1) loop */
     wdtPassword = IfxScuWdt_getCpuWatchdogPassword();
-
-    /* Default REL=0xFFFC gives only ~655 us timeout — far too short for a 250ms loop.
-     * Change reload to WDT_RELOAD (0xC000) => ~2684 ms timeout. */
     IfxScuWdt_changeCpuWatchdogReload(wdtPassword, WDT_RELOAD);
 
-    /* Safety watchdog is not used in this example — disable it */
+    /* Safety watchdog not used in this example */
     IfxScuWdt_disableSafetyWatchdog(IfxScuWdt_getSafetyWatchdogPassword());
 
-    /* Configure P33.6 - P33.13 as push-pull outputs */
+    /* Configure P33.6 - P33.13 as push-pull outputs, all OFF initially */
     for (pin = 6; pin <= 13; pin++)
     {
         IfxPort_setPinMode(&MODULE_P33, pin, IfxPort_Mode_outputPushPullGeneral);
-        IfxPort_setPinHigh(&MODULE_P33, pin);   /* LED OFF initially */
+        IfxPort_setPinHigh(&MODULE_P33, pin);
     }
 
-    /* Wait for CPU sync event */
+    /* Start STM0 compare interrupt — LED updates happen in stm0Isr() */
+    initStmInterrupt();
+
+    /* Sync all cores before entering the main loop */
     IfxCpu_emitEvent(&cpuSyncEvent);
     IfxCpu_waitEvent(&cpuSyncEvent, 1);
 
+    /* Main loop: nothing to do except service the watchdog.
+     * All LED work is done inside the STM0 ISR. */
     while(1)
     {
-        /* Service (kick) CPU0 watchdog — must be called before the timer expires */
         IfxScuWdt_serviceCpuWatchdog(wdtPassword);
-
-        IfxStm_waitTicks(&MODULE_STM0, BLINK_TICKS);
-
-        /* Display blinkCount as 8-bit binary on LEDs (active-low: LOW=ON, HIGH=OFF).
-         * P33.6 = bit0 (LSB) ... P33.13 = bit7 (MSB).
-         * Counter wraps 0-255 then repeats. */
-        for (pin = 0; pin < 8; pin++)
-        {
-            if (blinkCount & (1u << pin))
-                IfxPort_setPinLow(&MODULE_P33,  pin + 6);   /* bit set   → LED ON  */
-            else
-                IfxPort_setPinHigh(&MODULE_P33, pin + 6);   /* bit clear → LED OFF */
-        }
-
-        blinkCount = (blinkCount + 1u) & 0xFFu;  /* 0-255 counter, resets to 0 on WDT/HW reset */
     }
 }
