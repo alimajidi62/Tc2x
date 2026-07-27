@@ -156,7 +156,7 @@
            <Area></Area>
            <Load>true</Load>
            <OverrideMemArea>false</OverrideMemArea>
-           <Path>..\TriCore Debug (TASKING)\test2.elf</Path>
+           <Path>..\TriCore Debug (GCC)\test2.elf</Path>
            <PgmDestination>memory</PgmDestination>
            <TargetDir></TargetDir>
            <UseDefaultMSID>true</UseDefaultMSID>
@@ -264,7 +264,7 @@
            <Area></Area>
            <Load>true</Load>
            <OverrideMemArea>false</OverrideMemArea>
-           <Path>..\TriCore Debug (TASKING)\test2.elf</Path>
+           <Path>..\TriCore Debug (GCC)\test2.elf</Path>
            <PgmDestination>memory</PgmDestination>
            <TargetDir></TargetDir>
            <UseDefaultMSID>true</UseDefaultMSID>

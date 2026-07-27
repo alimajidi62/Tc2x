@@ -64,3 +64,6 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 Test2/Libraries/iLLD/TC29B/Tricore/_Build
+*.d
+*.mk
+*.src
