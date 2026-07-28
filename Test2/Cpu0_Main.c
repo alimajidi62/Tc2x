@@ -35,7 +35,7 @@
 #define GTM_PERIOD_TICKS   6250U    /* FXCLK1: 6.25 MHz / 6250 = 1000 Hz PWM  */
 #define GTM_DUTY_TICKS        0U    /* start at 0% - breathing loop changes it  */
 #define GTM_DUTY_STEP        63U    /* ~1% per step (63/6250)                   */
-#define STEP_TICKS      10000000UL  /* 50 ms per step at 200 MHz STM            */
+#define STEP_TICKS      1000000UL  /* 50 ms per step at 200 MHz STM            */
 #define HALF_SECOND_TICKS  100000000UL   /* 100 M ticks / 200 MHz = 500 ms */
 
 IfxCpu_syncEvent cpuSyncEvent = 0;
@@ -128,7 +128,7 @@ void core0_main(void)
             {
                 duty = (uint16)(duty + GTM_DUTY_STEP);
                 if (duty >= GTM_PERIOD_TICKS)
-                    { duty = GTM_PERIOD_TICKS; increasing = FALSE; }
+                    { duty = 0; increasing = TRUE; }
             }
             else
             {
