@@ -33,7 +33,9 @@
  *   - 3 blinks then LED stays OFF: GTM output stuck HIGH, clock issue
  */
 #define GTM_PERIOD_TICKS   6250U    /* FXCLK1: 6.25 MHz / 6250 = 1000 Hz PWM  */
-#define GTM_DUTY_TICKS      188U     /* 3% duty  (188/6250 = 3.0%)              */
+#define GTM_DUTY_TICKS        0U    /* start at 0% - breathing loop changes it  */
+#define GTM_DUTY_STEP        63U    /* ~1% per step (63/6250)                   */
+#define STEP_TICKS      10000000UL  /* 50 ms per step at 200 MHz STM            */
 #define HALF_SECOND_TICKS  100000000UL   /* 100 M ticks / 200 MHz = 500 ms */
 
 IfxCpu_syncEvent cpuSyncEvent = 0;
@@ -110,6 +112,35 @@ void core0_main(void)
     IfxCpu_emitEvent(&cpuSyncEvent);
     IfxCpu_waitEvent(&cpuSyncEvent, 1);
 
-    /* GTM runs autonomously - CPU has nothing to do */
-    while(1) {}
+    /* Breathing loop: ramp duty 0% -> 100% -> 0% -> ...
+     * One step every 50 ms, ~100 steps per ramp = ~5 s per ramp.
+     * Write to SR1 (shadow register); TOM loads it into CM1
+     * automatically at each period boundary (every 1 ms). */
+    {
+        uint16  duty       = 0;
+        boolean increasing = TRUE;
+
+        while(1)
+        {
+            IfxStm_waitTicks(&MODULE_STM0, STEP_TICKS);
+
+            if (increasing)
+            {
+                duty = (uint16)(duty + GTM_DUTY_STEP);
+                if (duty >= GTM_PERIOD_TICKS)
+                    { duty = GTM_PERIOD_TICKS; increasing = FALSE; }
+            }
+            else
+            {
+                if (duty <= GTM_DUTY_STEP)
+                    { duty = 0; increasing = TRUE; }
+                else
+                    duty = (uint16)(duty - GTM_DUTY_STEP);
+            }
+
+            /* Update duty via shadow register - glitch-free, takes effect
+             * on the next period boundary (within 1 ms at 1 kHz) */
+            MODULE_GTM.TOM[0].CH2.SR1.U = duty;
+        }
+    }
 }
