@@ -15,6 +15,7 @@ RM := rm -rf
 -include Libraries/iLLD/TC29B/Tricore/Scu/Std/subdir.mk
 -include Libraries/iLLD/TC29B/Tricore/Port/Std/subdir.mk
 -include Libraries/iLLD/TC29B/Tricore/Mtu/Std/subdir.mk
+-include Libraries/iLLD/TC29B/Tricore/Gtm/Tom/Pwm/subdir.mk
 -include Libraries/iLLD/TC29B/Tricore/Gtm/Std/subdir.mk
 -include Libraries/iLLD/TC29B/Tricore/Cpu/Trap/subdir.mk
 -include Libraries/iLLD/TC29B/Tricore/Cpu/Std/subdir.mk

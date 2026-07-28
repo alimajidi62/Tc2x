@@ -78,3 +78,5 @@ Test2/Libraries/iLLD/TC29B/Tricore/_Build
 *.hex
 *.lst
 Test2/gitcommit.txt
+Test2/TriCore Debug (GCC)
+Test2/.cproject
