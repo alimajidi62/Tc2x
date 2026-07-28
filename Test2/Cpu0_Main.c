@@ -37,6 +37,8 @@
 #define GTM_DUTY_STEP        63U    /* ~1% per step (63/6250)                   */
 #define STEP_TICKS      1000000UL  /* 50 ms per step at 200 MHz STM            */
 #define HALF_SECOND_TICKS  100000000UL   /* 100 M ticks / 200 MHz = 500 ms */
+/* WDT timeout ~5.4 s (well above the ~5 ms step interval) */
+#define WDT_RELOAD          0x8000U
 
 IfxCpu_syncEvent cpuSyncEvent = 0;
 
@@ -76,12 +78,15 @@ static void initGtmPwm(void)
 
 void core0_main(void)
 {
-    uint8 i;
+    uint8  i;
+    uint16 wdtPassword;
 
     IfxCpu_enableInterrupts();
 
-    /* Disable both watchdogs completely (no servicing needed in while loop) */
-    IfxScuWdt_disableCpuWatchdog(IfxScuWdt_getCpuWatchdogPassword());
+    /* Keep CPU0 watchdog ENABLED with a generous timeout (~5.4 s).
+     * It will be serviced once per duty-step iteration (~5-10 ms). */
+    wdtPassword = IfxScuWdt_getCpuWatchdogPassword();
+    IfxScuWdt_changeCpuWatchdogReload(wdtPassword, WDT_RELOAD);
     IfxScuWdt_disableSafetyWatchdog(IfxScuWdt_getSafetyWatchdogPassword());
 
     /* Configure P33.6 as GPIO push-pull, start OFF (HIGH = LED off) */
@@ -141,6 +146,9 @@ void core0_main(void)
             /* Update duty via shadow register - glitch-free, takes effect
              * on the next period boundary (within 1 ms at 1 kHz) */
             MODULE_GTM.TOM[0].CH2.SR1.U = duty;
+
+            /* Service CPU0 watchdog - must be called before timeout (~5.4 s) */
+            IfxScuWdt_serviceCpuWatchdog(wdtPassword);
         }
     }
 }
