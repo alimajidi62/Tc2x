@@ -32,8 +32,8 @@
  *   - 3 blinks then continuous 0.5 Hz blink: GTM works perfectly
  *   - 3 blinks then LED stays OFF: GTM output stuck HIGH, clock issue
  */
-#define GTM_PERIOD_TICKS   12208U
-#define GTM_DUTY_TICKS      6104U
+#define GTM_PERIOD_TICKS   6250U    /* FXCLK1: 6.25 MHz / 6250 = 1000 Hz PWM  */
+#define GTM_DUTY_TICKS      188U     /* 3% duty  (188/6250 = 3.0%)              */
 #define HALF_SECOND_TICKS  100000000UL   /* 100 M ticks / 200 MHz = 500 ms */
 
 IfxCpu_syncEvent cpuSyncEvent = 0;
@@ -56,7 +56,7 @@ static void initGtmPwm(void)
     IfxGtm_Tom_Pwm_initConfig(&tomConfig, gtm);
     tomConfig.tom        = IfxGtm_Tom_0;
     tomConfig.tomChannel = IfxGtm_Tom_Ch_2;
-    tomConfig.clock      = IfxGtm_Tom_Ch_ClkSrc_cmuFxclk4;
+    tomConfig.clock      = IfxGtm_Tom_Ch_ClkSrc_cmuFxclk1; /* 100 MHz / 16 = 6.25 MHz */
     tomConfig.period     = GTM_PERIOD_TICKS;
     tomConfig.dutyCycle  = GTM_DUTY_TICKS;
     tomConfig.signalLevel           = Ifx_ActiveState_low;
@@ -100,7 +100,11 @@ void core0_main(void)
     }
 
     /* After 3 blinks: pin is OFF in GPIO mode.
-     * GTM init switches pin to alt-function and starts 0.5 Hz PWM. */
+     * Turn P33.7 ON permanently as full-brightness reference (100%).
+     * Then GTM takes P33.6 at 30% PWM so you can compare brightness. */
+    IfxPort_setPinMode(&MODULE_P33, 7, IfxPort_Mode_outputPushPullGeneral);
+    IfxPort_setPinLow(&MODULE_P33, 7);   /* P33.7 LED always ON (active-low) */
+
     initGtmPwm();
 
     IfxCpu_emitEvent(&cpuSyncEvent);
