@@ -682,6 +682,18 @@ SECTIONS
 		*(.lmubss)
 		*(.lmubss.*)
 	} > lmuram
+
+	/* ETH DMA descriptors and frame buffers MUST be in non-cached memory.   */
+	/* The ETH DMA reads/writes physical RAM through the SRI bus, bypassing  */
+	/* the CPU write-back data cache.  lmuram_nc is the uncached alias of    */
+	/* the same 32 KB LMU RAM at 0xb0000000.                                 */
+	.eth_nc (NOLOAD) :
+	{
+		. = ALIGN(4);
+		*(.eth_nc)
+		*(.eth_nc.*)
+		. = ALIGN(4);
+	} > lmuram_nc
 	
 	.inttab_tc0_000 (LCF_INTVEC0_START + 0x0) : { . = ALIGN(8) ;  KEEP (*(.intvec_tc0_0)); } > pfls0
 	.inttab_tc0_001 (LCF_INTVEC0_START + 0x20) : { . = ALIGN(8) ;  KEEP (*(.intvec_tc0_1)); } > pfls0

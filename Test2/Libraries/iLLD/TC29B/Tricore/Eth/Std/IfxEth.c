@@ -152,6 +152,24 @@ void IfxEth_init(IfxEth *eth, const IfxEth_Config *config)
 
     /* select the Phy Interface Mode */
     IfxEth_setPhyInterfaceMode(eth, config->phyInterfaceMode);
+
+#ifndef _WIN32
+    /* ETH_GPCTL.ALTI input-mux registers are inside the ETH module and are
+     * wiped by the kernel reset above.  Re-apply them so that MDIO reads,
+     * REFCLK, CRS_DV, and RXD are correctly routed into the peripheral.
+     * (GPIO port output direction set earlier is NOT affected by ETH reset.) */
+    if (config->phyInterfaceMode == IfxEth_PhyInterfaceMode_rmii)
+    {
+        if (config->rmiiPins != NULL_PTR)
+            IfxEth_setupRmiiInputPins(eth, config->rmiiPins);
+    }
+    else
+    {
+        if (config->miiPins != NULL_PTR)
+            IfxEth_setupMiiInputPins(eth, config->miiPins);
+    }
+#endif
+
     IfxEth_applySoftwareReset(eth);
 
     /* wait until reset is finished or timeout. */
@@ -205,8 +223,10 @@ void IfxEth_init(IfxEth *eth, const IfxEth_Config *config)
 
     IfxEth_setMacAddress(eth, config->macAddress);
 
-    /* setup MMC */
-    ETH_MMC_CONTROL.B.CNTFREEZ = 1;         /* disable MMC counters - counters reset */
+    /* setup MMC — reset counters then enable counting (CNTFREEZ=0).
+     * ETH_TX_FRAME_COUNT_GOOD_BAD / _GOOD will count every MAC TX frame.
+     * If those stay 0 after sends, MAC TX is broken (no REFCLK / PHY mode). */
+    ETH_MMC_CONTROL.U = 1u;  /* CNTRST=1 resets all counters; CNTFREEZ=0 enables */
 
     /* setup GMAC */
     ETH_STATUS.U           = 0x0001e7ff;    /* reset all interrupt flag(s) */
@@ -795,22 +815,34 @@ void IfxEth_setupRmiiOutputPins(IfxEth *eth, const IfxEth_RmiiPins *rmiiPins)
 
     (void)eth;
 
-#if 0
-    IfxPort_setPinPadDriver(mdc->pin.port, mdc->pin.pinIndex, speedGrade);
-    IfxPort_setPinPadDriver(mdio->pin.port, mdio->pin.pinIndex, speedGrade);
-#endif
+    IfxPort_setPinPadDriver(mdc->pin.port,  mdc->pin.pinIndex,  speedGrade);
     IfxPort_setPinPadDriver(txen->pin.port, txen->pin.pinIndex, speedGrade);
     IfxPort_setPinPadDriver(txd0->pin.port, txd0->pin.pinIndex, speedGrade);
     IfxPort_setPinPadDriver(txd1->pin.port, txd1->pin.pinIndex, speedGrade);
 
-    IfxPort_setPinModeOutput(mdc->pin.port, mdc->pin.pinIndex, mode, mdc->select);
+    IfxPort_setPinModeOutput(mdc->pin.port,  mdc->pin.pinIndex,  mode, mdc->select);
     IfxPort_setPinModeOutput(txen->pin.port, txen->pin.pinIndex, mode, txen->select);
     IfxPort_setPinModeOutput(txd0->pin.port, txd0->pin.pinIndex, mode, txd0->select);
     IfxPort_setPinModeOutput(txd1->pin.port, txd1->pin.pinIndex, mode, txd1->select);
 
-    // For MDIO, when P21.1 is used it should be configured as output
+    /* P21.3 MDIO: the TC29x ETH MAC drives this pin through its own internal
+     * MDIO pad cell — it does NOT use the port alternate-function output path.
+     * Calling setPinModeOutput here connects P21.3 to the wrong peripheral
+     * signal (e.g. TXD) and drives it LOW during PHY read data phases,
+     * returning 0x0000 on every MDIO read.
+     * For P21.1 MDIO the alternate-function output IS needed (different pad
+     * routing), which is why the original iLLD only configured it for pinIndex==1.
+     * Leave P21.3 in its default input state; ALTI0 (set in setupRmiiInputPins
+     * and re-applied after kernel reset) routes the pin to the ETH MDIO input.
+     *
+     * For P21.1 (TriBoard TC297 v1.0): HW direction switching is NOT available
+     * on this pin.  Configure as output with WEAKEST pad driver so the PHY
+     * can overdrive the line during MDIO read data phases.
+     * (Ref: Infineon community post #317565 by MoD/Infineon Employee)          */
     if ((mdio->pin.port == (&MODULE_P21)) && (mdio->pin.pinIndex == 1))
     {
+        IfxPort_setPinPadDriver(mdio->pin.port, mdio->pin.pinIndex,
+                                IfxPort_PadDriver_cmosAutomotiveSpeed1); /* weakest */
         IfxPort_setPinModeOutput(mdio->pin.port, mdio->pin.pinIndex, mode, mdio->outSelect);
     }
 }

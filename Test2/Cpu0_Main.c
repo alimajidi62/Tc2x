@@ -10,6 +10,8 @@
 #include "IfxPort.h"
 #include "Stm/Std/IfxStm.h"
 #include "Gtm/Tom/Pwm/IfxGtm_Tom_Pwm.h"
+#include "Eth_Udp.h"
+#include <stdio.h>    /* snprintf */
 
 /*
  * Combined demo  (TriBoard TC2X7 V1.0, active-low LEDs on PORT 33):
@@ -148,11 +150,75 @@ void core0_main(void)
     initGtmPwm();       /* P33.6 -> GTM PWM (takes over pin from GPIO) */
     initStmInterrupt(); /* starts 5 ms ISR: PWM duty ramp + LED counter */
 
+    /* ----------------------------------------------------------------
+     * Ethernet / UDP initialisation
+     * Board IP : 192.168.1.200  (see Eth_Udp.h to change)
+     * PC side  : run  ncat -u -l 4000  to receive log packets
+     *            run  ncat -u 192.168.1.200 4000  to send commands
+     * --------------------------------------------------------------- */
+    Eth_Udp_init();
+
+    /* Visual confirm: blink P33.13 (leftmost LED) 3x fast if ETH init ran */
+    {
+        uint8 b;
+        for (b = 0u; b < 3u; b++)
+        {
+            IfxPort_setPinLow(&MODULE_P33, 13u);
+            IfxStm_waitTicks(&MODULE_STM0, 20000000UL);  /* ~100 ms */
+            IfxPort_setPinHigh(&MODULE_P33, 13u);
+            IfxStm_waitTicks(&MODULE_STM0, 20000000UL);
+        }
+    }
+
     IfxCpu_emitEvent(&cpuSyncEvent);
     IfxCpu_waitEvent(&cpuSyncEvent, 1);
+
+    /* STM tick counter for periodic UDP send (500 ms = 100 000 000 ticks @ 200 MHz) */
+    uint64 nextSendTick = IfxStm_get(&MODULE_STM0) + 100000000ULL;
 
     while(1)
     {
         IfxScuWdt_serviceCpuWatchdog(wdtPassword);
+
+        /* Process one pending Ethernet frame (ARP reply + UDP receive) */
+        Eth_Udp_poll();
+
+        /* Check for a command arriving from the PC on UDP port 4000 */
+        {
+            uint8  senderIp[4];
+            uint16 senderPort;
+            char   cmdBuf[64];
+            uint16 cmdLen;
+
+            cmdLen = Eth_Udp_receive(4000u, senderIp, &senderPort,
+                                     cmdBuf, (uint16)(sizeof(cmdBuf) - 1u));
+            if (cmdLen > 0u)
+            {
+                cmdBuf[cmdLen] = '\0';   /* null-terminate for string ops */
+                /* TODO: parse cmdBuf here and act on the command */
+                (void)cmdBuf;
+            }
+        }
+
+        /* Send a log packet every 500 ms */
+        if (IfxStm_get(&MODULE_STM0) >= nextSendTick)
+        {
+            char   logMsg[64];
+            int    msgLen;
+
+            msgLen = snprintf(logMsg, sizeof(logMsg),
+                              "LOG blinkCount=%lu linkUp=%u\n",
+                              (unsigned long)blinkCount,
+                              (unsigned)Eth_Udp_isLinkUp());
+
+            if (msgLen > 0)
+            {
+                /* Broadcast so no ARP/MAC lookup is needed on first boot.    */
+                /* Switch to Eth_Udp_sendTo() once you know the PC's MAC/IP.  */
+                Eth_Udp_sendBcast(4001u, 4000u, logMsg, (uint16)msgLen);
+            }
+
+            nextSendTick += 100000000ULL;   /* reschedule +500 ms */
+        }
     }
 }
