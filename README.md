@@ -38,6 +38,67 @@ A bare-metal multicore blink example that exercises the three on-chip TriCore CP
 
 ---
 
+## Ethernet / UDP (Test2 — TriBoard TC297 V1.0)
+
+`Test2` also contains a bare-metal UDP/IP stack (`Eth_Udp.c / Eth_Udp.h`) that implements ARP reply and UDP broadcast/receive over the on-chip ETH MAC in RMII mode.
+
+### Known Hardware Issue — PHY strap resistor R370
+
+**Problem:** The PEF7071 Ethernet PHY on the **TriBoard TC297 V1.0** powers on in **MII mode** by default (R370 = 11 kΩ strap).  The TC29x ETH MAC is configured for **RMII mode**, so the two interfaces are incompatible.  In MII mode the PHY does not generate the 50 MHz REFCLK that RMII requires, so no frames are ever transmitted or received.
+
+Symptoms observed during debugging:
+- Green link LED on the RJ45 connector (physical layer OK)
+- `ETH_TX_FRAME_COUNT_GOOD` (MAC hardware counter) stays at 0 or 1 — TX FIFO fills and stalls
+- `ETH_RX_FRAMES_COUNT_GOOD_BAD` stays at 0 — MAC receives nothing
+- Wireshark shows no packets from 192.168.1.200
+- `ping 192.168.1.200` gets "Destination host unreachable" (no ARP reply from board)
+
+**Root cause:**  
+The TriBoard uses R370 = 11 kΩ as a MODE strap pin on the PEF7071.  This selects a non-RMII interface mode at power-on.  The Application Kit TC2x7 V1.1 uses a different strap value and powers on in RMII mode automatically.  MDIO software configuration of `MIICTRL` register (0x17 ← 0xF702) is required to switch the TriBoard PHY to RMII mode, but this is hampered by the fact that P21.1 (MDIO) **alt6** does not map to the ETH MAC's MDO output on this TC29x silicon, making GMII-hardware MDIO writes unreliable.
+
+**Fix — change resistor R370 (recommended hardware fix):**
+
+> Replace **R370** on the TriBoard TC297 V1.0 from **11 kΩ → 3.3 kΩ** (same SMD package, e.g. 0402).
+
+With R370 = 3.3 kΩ the PEF7071 powers on in the same RMII-compatible mode as the Application Kit.  No MDIO writes are needed; the ETH MAC and PHY interface match immediately and Ethernet works without any software change.
+
+*(Reference: Infineon community thread #317565, reply by Infineon employee "MoD", August 2020.)*
+
+### Additional iLLD bugs fixed in this project
+
+The following bugs were found in `iLLD_1_20_0` for TC29B and are patched in this repository:
+
+| File | Bug | Fix |
+|---|---|---|
+| `IfxEth.c` `IfxEth_setupRmiiOutputPins` | MDIO pad driver and output never configured for P21.1 (TriBoard MDIO pin) | Added `setPinPadDriver` + `setPinModeOutput` for `pinIndex == 1` |
+| `IfxEth.c` `IfxEth_init` | `IfxEth_resetModule()` (kernel reset) wipes `ETH_GPCTL.ALTI` input-mux registers; RMII input pins (REFCLK, CRS_DV, RXD0, RXD1, MDIO) lose their routing after reset | Re-call `IfxEth_setupRmiiInputPins` after `resetModule()` |
+| `Eth_Udp.c` `phyInitSafe` | PHY reset read-back loop exits instantly because MDIO reads return 0 — `MIICTRL` write arrives while PHY is still in reset and is dropped | Replace read-back loop with a 100 ms hard delay (`IfxStm_waitTicks`) |
+
+### Network configuration
+
+| Setting | Value |
+|---|---|
+| Board IP | 192.168.1.200 |
+| Board MAC | 00:11:22:33:44:55 |
+| UDP log port (TX) | 4001 (broadcast every 500 ms) |
+| UDP command port (RX) | 4000 |
+
+**PC-side tools:**
+```
+# Listen for board log packets
+ncat -u -l 4001
+
+# Send commands to board
+ncat -u 192.168.1.200 4000
+```
+
+**Wireshark display filter:**
+```
+ip.src == 192.168.1.200
+```
+
+---
+
 ## Repository Structure
 
 ```
