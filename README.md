@@ -28,12 +28,28 @@ A bare-metal multicore blink example that exercises the three on-chip TriCore CP
 - **CPU1 / CPU2** perform watchdog disable and participate in the CPU synchronisation barrier, then idle in their main loops.
 - All cores synchronise at startup via `IfxCpu_syncEvent` before entering their main loops.
 
+**Multi-CPU process**
+
+All three cores start in parallel. Each calls `IfxCpu_emitEvent` then `IfxCpu_waitEvent` on a shared `cpuSyncEvent` flag, so no core enters its main loop until all three have reached the barrier.
+
+After sync, the cores split work via a shared mailbox (`Mailbox g_mbCpus`) placed in non-cached LMU RAM:
+
+| Core | Role |
+|---|---|
+| CPU0 | Posts requests, drives LEDs & GTM PWM, reads results |
+| CPU1 | Worker — computes `inputA²` and signals `MB_DONE` |
+| CPU2 | Worker — computes `inputA + inputB` and signals `MB_DONE` |
+
+CPU0 writes inputs, sets `cmd = MB_REQ`, then polls until the worker sets `cmd = MB_DONE`. No cache-flush is needed because LMU is non-cached on TC29x.
+
 **Key concepts demonstrated**
 
 - Multicore startup and CPU synchronisation (`IfxCpu_syncEvent`)
+- Inter-core mailbox over non-cached LMU RAM (`SharedMem.h`)
 - Watchdog disable (CPU + Safety watchdog)
 - GPIO output configuration and toggling via iLLD (`IfxPort_*`)
-- Busy-wait delay via STM (`IfxStm_waitTicks`)
+- GTM/TOM hardware PWM with shadow register update from ISR
+- Periodic STM ISR for LED counter and PWM duty stepping
 - PLL / clock configuration (`Ifx_Cfg.h`)
 
 ---
