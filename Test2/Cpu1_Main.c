@@ -42,10 +42,10 @@ void core1_main(void)
     /* CPU1 worker: waits for a request then returns inputA squared */
     while(1)
     {
-        while (g_mbCpu1.cmd != MB_REQ) {}
+        while (g_mbCpus.cmd[MB_CPU1] != MB_REQ) {}
 
-        uint32 a       = g_mbCpu1.inputA;
-        g_mbCpu1.result = a * a;
-        g_mbCpu1.cmd    = MB_DONE;
+        uint32 a                  = g_mbCpus.inputA[MB_CPU1];
+        g_mbCpus.result[MB_CPU1]  = a * a;
+        g_mbCpus.cmd[MB_CPU1]     = MB_DONE;
     }
 }

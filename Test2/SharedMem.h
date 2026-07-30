@@ -27,6 +27,10 @@
 #define MB_REQ   1u   /* CPU0 wrote inputs, worker must process  */
 #define MB_DONE  2u   /* worker wrote result, CPU0 must read it  */
 
+#define MB_CPU1  0u   /* index for the CPU1 worker slot */
+#define MB_CPU2  1u   /* index for the CPU2 worker slot */
+#define MB_NWORKERS 2u
+
 /*
  * SHARED_NC: optional section attribute that places a variable in the
  * non-cached LMU alias (0xB0000000).  On TC29x this is unnecessary for
@@ -39,16 +43,14 @@
 #define SHARED_NC  /* TASKING: use #pragma section or leave at default DSPR */
 #endif
 
+/* Single struct covers all worker cores; use MB_CPU1 / MB_CPU2 as index. */
 typedef struct {
-    volatile uint32 cmd;     /* handshake state (MB_IDLE / MB_REQ / MB_DONE) */
-    volatile uint32 inputA;  /* first  operand — written by CPU0              */
-    volatile uint32 inputB;  /* second operand — written by CPU0              */
-    volatile uint32 result;  /* answer         — written by the worker core   */
+    volatile uint32 cmd[MB_NWORKERS];     /* handshake state per worker */
+    volatile uint32 inputA[MB_NWORKERS];  /* first  operand from CPU0   */
+    volatile uint32 inputB[MB_NWORKERS];  /* second operand from CPU0   */
+    volatile uint32 result[MB_NWORKERS];  /* answer written by worker   */
 } Mailbox;
 
-/* g_mbCpu1: CPU0 <-> CPU1.  Worker computes  result = inputA * inputA  */
-/* g_mbCpu2: CPU0 <-> CPU2.  Worker computes  result = inputA + inputB  */
-extern Mailbox g_mbCpu1;
-extern Mailbox g_mbCpu2;
+extern Mailbox g_mbCpus;
 
 #endif /* SHARED_MEM_H */

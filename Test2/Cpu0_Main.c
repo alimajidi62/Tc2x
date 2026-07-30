@@ -46,15 +46,8 @@ static IfxStm_CompareConfig stmConfig;
 /* Visible in debugger Watch window */
 volatile uint32 blinkCount = 0;
 
-/* -------------------------------------------------------------------------
- * Shared mailboxes -- plain globals in CPU0 DSPR (0x70100000).
- * TC29x DSPR is non-cached scratchpad: all cores can read/write it safely
- * via the global bus without cache-coherency issues.  No special section
- * placement or cache flush is needed -- volatile + the protocol flag is
- * sufficient for the handshake.
- * ---------------------------------------------------------------------- */
-Mailbox g_mbCpu1;  /* CPU0 <-> CPU1: worker computes input*input */
-Mailbox g_mbCpu2;  /* CPU0 <-> CPU2: worker computes inputA+inputB */
+/* TC29x DSPR is non-cached scratchpad: safe for multi-core access via global bus */
+Mailbox g_mbCpus;
 
 /* Results pulled from the mailboxes each round -- watch these in debugger */
 volatile uint32 g_squareResult = 0;   /* CPU1 answer: input*input */
@@ -168,8 +161,14 @@ void core0_main(void)
     IfxCpu_waitEvent(&cpuSyncEvent, 1);
 
     /* Explicitly initialise NOLOAD shared memory (no startup copy from flash) */
-    g_mbCpu1.cmd = MB_IDLE; g_mbCpu1.inputA = 0; g_mbCpu1.inputB = 0; g_mbCpu1.result = 0;
-    g_mbCpu2.cmd = MB_IDLE; g_mbCpu2.inputA = 0; g_mbCpu2.inputB = 0; g_mbCpu2.result = 0;
+    uint32 w;
+    for (w = 0u; w < MB_NWORKERS; w++)
+    {
+        g_mbCpus.cmd[w] = MB_IDLE;
+        g_mbCpus.inputA[w] = 0u;
+        g_mbCpus.inputB[w] = 0u;
+        g_mbCpus.result[w] = 0u;
+    }
 
     /* Every 500 ms: post work to CPU1 (square) and CPU2 (add), collect results.
      * Watch in debugger: g_mbCounter, g_squareResult, g_sumResult.
@@ -185,24 +184,24 @@ void core0_main(void)
         nextRoundTick += 100000000ULL;
 
         /* --- Post work to CPU1 (square) -------------------------------- */
-        g_mbCpu1.inputA = g_mbCounter;
-        g_mbCpu1.inputB = 0;
-        g_mbCpu1.cmd    = MB_REQ;
+        g_mbCpus.inputA[MB_CPU1] = g_mbCounter;
+        g_mbCpus.inputB[MB_CPU1] = 0u;
+        g_mbCpus.cmd[MB_CPU1]    = MB_REQ;
 
         /* --- Post work to CPU2 (add) ----------------------------------- */
-        g_mbCpu2.inputA = g_mbCounter;
-        g_mbCpu2.inputB = g_mbCounter + 1u;
-        g_mbCpu2.cmd    = MB_REQ;
+        g_mbCpus.inputA[MB_CPU2] = g_mbCounter;
+        g_mbCpus.inputB[MB_CPU2] = g_mbCounter + 1u;
+        g_mbCpus.cmd[MB_CPU2]    = MB_REQ;
 
         /* --- Wait for CPU1 result -------------------------------------- */
-        while (g_mbCpu1.cmd != MB_DONE) {}
-        g_squareResult  = g_mbCpu1.result;
-        g_mbCpu1.cmd    = MB_IDLE;
+        while (g_mbCpus.cmd[MB_CPU1] != MB_DONE) {}
+        g_squareResult          = g_mbCpus.result[MB_CPU1];
+        g_mbCpus.cmd[MB_CPU1]   = MB_IDLE;
 
         /* --- Wait for CPU2 result -------------------------------------- */
-        while (g_mbCpu2.cmd != MB_DONE) {}
-        g_sumResult  = g_mbCpu2.result;
-        g_mbCpu2.cmd = MB_IDLE;
+        while (g_mbCpus.cmd[MB_CPU2] != MB_DONE) {}
+        g_sumResult             = g_mbCpus.result[MB_CPU2];
+        g_mbCpus.cmd[MB_CPU2]   = MB_IDLE;
 
         /* Use square result to drive the topmost LED (P33.13) */
         if (g_squareResult > 100u)

@@ -42,9 +42,9 @@ void core2_main(void)
     /* CPU2 worker: waits for a request then returns inputA + inputB */
     while(1)
     {
-        while (g_mbCpu2.cmd != MB_REQ) {}
+        while (g_mbCpus.cmd[MB_CPU2] != MB_REQ) {}
 
-        g_mbCpu2.result = g_mbCpu2.inputA + g_mbCpu2.inputB;
-        g_mbCpu2.cmd    = MB_DONE;
+        g_mbCpus.result[MB_CPU2] = g_mbCpus.inputA[MB_CPU2] + g_mbCpus.inputB[MB_CPU2];
+        g_mbCpus.cmd[MB_CPU2]    = MB_DONE;
     }
 }
