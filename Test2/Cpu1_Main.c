@@ -27,23 +27,25 @@
 #include "Ifx_Types.h"
 #include "IfxCpu.h"
 #include "IfxScuWdt.h"
+#include "SharedMem.h"
 
 extern IfxCpu_syncEvent cpuSyncEvent;
 
 void core1_main(void)
 {
     IfxCpu_enableInterrupts();
-    
-    /* !!WATCHDOG1 IS DISABLED HERE!!
-     * Enable the watchdog and service it periodically if it is required
-     */
     IfxScuWdt_disableCpuWatchdog(IfxScuWdt_getCpuWatchdogPassword());
-    
-    /* Wait for CPU sync event */
+
     IfxCpu_emitEvent(&cpuSyncEvent);
     IfxCpu_waitEvent(&cpuSyncEvent, 1);
-    
+
+    /* CPU1 worker: waits for a request then returns inputA squared */
     while(1)
     {
+        while (g_mbCpu1.cmd != MB_REQ) {}
+
+        uint32 a       = g_mbCpu1.inputA;
+        g_mbCpu1.result = a * a;
+        g_mbCpu1.cmd    = MB_DONE;
     }
 }

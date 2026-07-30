@@ -10,6 +10,7 @@
 #include "IfxPort.h"
 #include "Stm/Std/IfxStm.h"
 #include "Gtm/Tom/Pwm/IfxGtm_Tom_Pwm.h"
+#include "SharedMem.h"
 
 /*
  * Combined demo  (TriBoard TC2X7 V1.0, active-low LEDs on PORT 33):
@@ -44,6 +45,21 @@ static IfxStm_CompareConfig stmConfig;
 
 /* Visible in debugger Watch window */
 volatile uint32 blinkCount = 0;
+
+/* -------------------------------------------------------------------------
+ * Shared mailboxes -- plain globals in CPU0 DSPR (0x70100000).
+ * TC29x DSPR is non-cached scratchpad: all cores can read/write it safely
+ * via the global bus without cache-coherency issues.  No special section
+ * placement or cache flush is needed -- volatile + the protocol flag is
+ * sufficient for the handshake.
+ * ---------------------------------------------------------------------- */
+Mailbox g_mbCpu1;  /* CPU0 <-> CPU1: worker computes input*input */
+Mailbox g_mbCpu2;  /* CPU0 <-> CPU2: worker computes inputA+inputB */
+
+/* Results pulled from the mailboxes each round -- watch these in debugger */
+volatile uint32 g_squareResult = 0;   /* CPU1 answer: input*input */
+volatile uint32 g_sumResult    = 0;   /* CPU2 answer: inputA+inputB */
+volatile uint32 g_mbCounter    = 0;   /* how many rounds completed */
 
 /* -------------------------------------------------------------------------
  * STM0 ISR  (fires every STEP_TICKS = 5 ms)
@@ -151,8 +167,49 @@ void core0_main(void)
     IfxCpu_emitEvent(&cpuSyncEvent);
     IfxCpu_waitEvent(&cpuSyncEvent, 1);
 
+    /* Explicitly initialise NOLOAD shared memory (no startup copy from flash) */
+    g_mbCpu1.cmd = MB_IDLE; g_mbCpu1.inputA = 0; g_mbCpu1.inputB = 0; g_mbCpu1.result = 0;
+    g_mbCpu2.cmd = MB_IDLE; g_mbCpu2.inputA = 0; g_mbCpu2.inputB = 0; g_mbCpu2.result = 0;
+
+    /* Every 500 ms: post work to CPU1 (square) and CPU2 (add), collect results.
+     * Watch in debugger: g_mbCounter, g_squareResult, g_sumResult.
+     * P33.13 turns ON once the square exceeds 100 (i.e. after g_mbCounter >= 11). */
+    uint64 nextRoundTick = IfxStm_get(&MODULE_STM0) + 100000000ULL; /* 500 ms */
+
     while(1)
     {
         IfxScuWdt_serviceCpuWatchdog(wdtPassword);
+
+        if (IfxStm_get(&MODULE_STM0) < nextRoundTick)
+            continue;
+        nextRoundTick += 100000000ULL;
+
+        /* --- Post work to CPU1 (square) -------------------------------- */
+        g_mbCpu1.inputA = g_mbCounter;
+        g_mbCpu1.inputB = 0;
+        g_mbCpu1.cmd    = MB_REQ;
+
+        /* --- Post work to CPU2 (add) ----------------------------------- */
+        g_mbCpu2.inputA = g_mbCounter;
+        g_mbCpu2.inputB = g_mbCounter + 1u;
+        g_mbCpu2.cmd    = MB_REQ;
+
+        /* --- Wait for CPU1 result -------------------------------------- */
+        while (g_mbCpu1.cmd != MB_DONE) {}
+        g_squareResult  = g_mbCpu1.result;
+        g_mbCpu1.cmd    = MB_IDLE;
+
+        /* --- Wait for CPU2 result -------------------------------------- */
+        while (g_mbCpu2.cmd != MB_DONE) {}
+        g_sumResult  = g_mbCpu2.result;
+        g_mbCpu2.cmd = MB_IDLE;
+
+        /* Use square result to drive the topmost LED (P33.13) */
+        if (g_squareResult > 100u)
+            IfxPort_setPinLow(&MODULE_P33, 13u);   /* ON  */
+        else
+            IfxPort_setPinHigh(&MODULE_P33, 13u);  /* OFF */
+
+        g_mbCounter++;
     }
 }

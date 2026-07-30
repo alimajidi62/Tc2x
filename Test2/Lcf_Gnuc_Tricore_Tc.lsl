@@ -682,6 +682,12 @@ SECTIONS
 		*(.lmubss)
 		*(.lmubss.*)
 	} > lmuram
+
+	/* Non-cached LMU: shared data accessed by all three cores with no cache coherency concerns */
+	.shared_nc (NOLOAD) :
+	{
+		KEEP(*(.shared_nc))
+	} > lmuram_nc
 	
 	.inttab_tc0_000 (LCF_INTVEC0_START + 0x0) : { . = ALIGN(8) ;  KEEP (*(.intvec_tc0_0)); } > pfls0
 	.inttab_tc0_001 (LCF_INTVEC0_START + 0x20) : { . = ALIGN(8) ;  KEEP (*(.intvec_tc0_1)); } > pfls0
