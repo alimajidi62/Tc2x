@@ -58,14 +58,16 @@ volatile uint32 g_mbCounter    = 0;   /* how many rounds completed */
 
 /* -------------------------------------------------------------------------
  * STM0 ISR  (fires every STEP_TICKS = 5 ms)
- *   - Updates GTM PWM duty via SR1 shadow register (sawtooth)
- *   - Updates binary counter on P33.7-P33.13 every 100 ms
+ *   - Updates all 5 GTM PWM duties via SR1 shadow registers (phased sawtooth)
+ *   - Updates 3-bit binary counter on P33.11-P33.13 every 100 ms
  * ---------------------------------------------------------------------- */
 IFX_INTERRUPT(stm0Isr, 0, STM0_ISR_PRIO)
 {
-    static uint16 duty     = 0;
+    /* Initial duties create a left-to-right wave: P33.6->P33.7->P33.8->P33.9->P33.10
+     * Array is indexed by TOM channel number (CH0=P33.10 ... CH4=P33.8) */
+    static uint16 duty[PWM_CH_COUNT] = {5000U, 3750U, 0U, 1250U, 2500U};
     static uint8  ledTimer = 0;
-    uint8 pin;
+    uint8 pin, i;
 
     IfxStm_clearCompareFlag(&MODULE_STM0, stmConfig.comparator);
     IfxStm_updateCompare(&MODULE_STM0, stmConfig.comparator,
