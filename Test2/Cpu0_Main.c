@@ -73,24 +73,31 @@ IFX_INTERRUPT(stm0Isr, 0, STM0_ISR_PRIO)
     IfxStm_updateCompare(&MODULE_STM0, stmConfig.comparator,
                          IfxStm_getLower(&MODULE_STM0) + STEP_TICKS);
 
-    /* --- PWM duty ramp: sawtooth 0 -> 100% -> snap to 0 --- */
-    duty = (uint16)(duty + GTM_DUTY_STEP);
-    if (duty >= GTM_PERIOD_TICKS)
-        duty = 0;
-    MODULE_GTM.TOM[0].CH2.SR1.U = duty;  /* shadow; loaded into CM1 at next period */
+    /* --- Sawtooth ramp on all 5 PWM channels, 1/5-period phase stagger --- */
+    for (i = 0u; i < PWM_CH_COUNT; i++)
+    {
+        duty[i] = (uint16)(duty[i] + GTM_DUTY_STEP);
+        if (duty[i] >= GTM_PERIOD_TICKS)
+            duty[i] = 0u;
+    }
+    MODULE_GTM.TOM[0].CH0.SR1.U = duty[0];  /* P33.10  phase 4/5 */
+    MODULE_GTM.TOM[0].CH1.SR1.U = duty[1];  /* P33.9   phase 3/5 */
+    MODULE_GTM.TOM[0].CH2.SR1.U = duty[2];  /* P33.6   phase 0   */
+    MODULE_GTM.TOM[0].CH3.SR1.U = duty[3];  /* P33.7   phase 1/5 */
+    MODULE_GTM.TOM[0].CH4.SR1.U = duty[4];  /* P33.8   phase 2/5 */
 
-    /* --- Binary counter on P33.7-P33.13 every 100 ms --- */
+    /* --- 3-bit binary counter on P33.11-P33.13 every 100 ms --- */
     if (++ledTimer >= LED_DIVISOR)
     {
         ledTimer = 0;
-        for (pin = 0; pin < 7; pin++)
+        for (pin = 0u; pin < 3u; pin++)
         {
             if (blinkCount & (1u << pin))
-                IfxPort_setPinLow(&MODULE_P33,  (uint8)(pin + 7));  /* bit=1 -> ON  */
+                IfxPort_setPinLow(&MODULE_P33,  (uint8)(pin + 11u));
             else
-                IfxPort_setPinHigh(&MODULE_P33, (uint8)(pin + 7));  /* bit=0 -> OFF */
+                IfxPort_setPinHigh(&MODULE_P33, (uint8)(pin + 11u));
         }
-        blinkCount = (blinkCount + 1u) & 0x7Fu;  /* 7-bit: 0-127 */
+        blinkCount = (blinkCount + 1u) & 0x07u;  /* 3-bit: 0-7 */
     }
 }
 
