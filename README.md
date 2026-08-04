@@ -10,7 +10,7 @@ A hands-on learning repository for the **Infineon AURIX TC2x** microcontroller f
 |---|---|
 | MCU | Infineon AURIX TC29B (TriCore architecture) |
 | Target Board | TriBoard TC2X7 V1.0 |
-| User LEDs | 8 × active-low LEDs on PORT 33, pins 6–13 |
+| User LEDs | 8 × active-low LEDs on PORT 33, pins 6–13 (active-low) |
 | Crystal | 20 MHz external oscillator |
 | CPU/STM Clock | 200 MHz (configured via PLL) |
 
@@ -24,7 +24,12 @@ A bare-metal multicore blink example that exercises the three on-chip TriCore CP
 
 **What it does**
 
-- **CPU0** configures PORT 33 pins 6–13 as push-pull outputs and toggles all 8 LEDs every ~500 ms (at 100 MHz STM) or ~250 ms (at 200 MHz STM) using the System Timer Module (STM).
+| Pin range | Role |
+|---|---|
+| P33.6 – P33.10 | 5 × hardware PWM via GTM/TOM0-CH2,3,4,1,0 — phased sawtooth wave |
+| P33.11 – P33.13 | 3-bit binary counter driven from STM ISR, steps every 100 ms |
+
+- **CPU0** initialises all five GTM TOM channels (1 kHz, active-low), runs an STM ISR every 5 ms that advances every channel's duty by ~1% and updates the 3-bit counter, and orchestrates the inter-core mailbox.
 - **CPU1 / CPU2** perform watchdog disable and participate in the CPU synchronisation barrier, then idle in their main loops.
 - All cores synchronise at startup via `IfxCpu_syncEvent` before entering their main loops.
 
@@ -48,8 +53,10 @@ CPU0 writes inputs, sets `cmd = MB_REQ`, then polls until the worker sets `cmd =
 - Inter-core mailbox over non-cached LMU RAM (`SharedMem.h`)
 - Watchdog disable (CPU + Safety watchdog)
 - GPIO output configuration and toggling via iLLD (`IfxPort_*`)
-- GTM/TOM hardware PWM with shadow register update from ISR
-- Periodic STM ISR for LED counter and PWM duty stepping
+- GTM/TOM multi-channel hardware PWM with table-driven init and phase-staggered sawtooth wave
+- Shadow register (`SR1`) update from ISR for glitch-free duty changes at 1 kHz
+- TGC (TOM Global Channel) used to enable all channels atomically
+- Periodic STM ISR for multi-channel PWM duty stepping and 3-bit LED counter
 - PLL / clock configuration (`Ifx_Cfg.h`)
 
 ---
