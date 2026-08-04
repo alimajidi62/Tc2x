@@ -108,7 +108,21 @@ static void initGtmPwm(void)
 {
     Ifx_GTM              *gtm = &MODULE_GTM;
     IfxGtm_Tom_Pwm_Config tomConfig;
-    static IfxGtm_Tom_Pwm_Driver tomDriver;
+    static IfxGtm_Tom_Pwm_Driver tomDriver[PWM_CH_COUNT];
+
+    /* Channel/pin tables ordered by physical LED position P33.6..P33.10 */
+    static const IfxGtm_Tom_Ch pwmCh[PWM_CH_COUNT] = {
+        IfxGtm_Tom_Ch_2, IfxGtm_Tom_Ch_3, IfxGtm_Tom_Ch_4,
+        IfxGtm_Tom_Ch_1, IfxGtm_Tom_Ch_0
+    };
+    static const IfxGtm_Tom_ToutMap *pwmPin[PWM_CH_COUNT] = {
+        &IfxGtm_TOM0_2_TOUT28_P33_6_OUT,
+        &IfxGtm_TOM0_3_TOUT29_P33_7_OUT,
+        &IfxGtm_TOM0_4_TOUT30_P33_8_OUT,
+        &IfxGtm_TOM0_1_TOUT31_P33_9_OUT,
+        &IfxGtm_TOM0_0_TOUT32_P33_10_OUT,
+    };
+    uint8 i;
 
     IfxGtm_enable(gtm);
     while (gtm->CLC.B.DISS != 0U) {}
