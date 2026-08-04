@@ -15,21 +15,23 @@
 /*
  * Combined demo  (TriBoard TC2X7 V1.0, active-low LEDs on PORT 33):
  *
- *   P33.6          : GTM/TOM0-CH2 hardware PWM - sawtooth brightness ramp
- *                    (0% -> 100% -> snap to 0, repeating, ~0.5 s cycle)
+ *   P33.6  - P33.10 : GTM/TOM0-CH2,3,4,1,0 hardware PWM - phased sawtooth wave
+ *                     Five LEDs carry the same brightness ramp staggered by 1/5
+ *                     period each, creating a wave that sweeps left to right.
  *
- *   P33.7 - P33.13 : 7-bit binary counter via STM ISR, steps every 100 ms
+ *   P33.11 - P33.13 : 3-bit binary counter via STM ISR, steps every 100 ms
  *
  * GTM clock:  FXCLK1 = 100 MHz / 16 = 6.25 MHz
  *   CM0 = 6250 ticks -> 1000 Hz PWM  (no visible flicker)
- *   Duty updated in STM ISR via SR1 shadow register
+ *   Each channel's SR1 is updated in the STM ISR; loaded into CM1 at next period.
  *
  * STM ISR fires every STEP_TICKS = 1 000 000 ticks = 5 ms (at 200 MHz STM).
- *   Each call: advance PWM duty one step (~1%).
- *   Every 20 calls (= 100 ms): advance LED counter one step.
+ *   Each call: advance all 5 PWM duties one step (~1%).
+ *   Every 20 calls (= 100 ms): advance the 3-bit LED counter one step.
  */
 #define GTM_PERIOD_TICKS   6250U
 #define GTM_DUTY_STEP        63U   /* ~1% per 5 ms step */
+#define PWM_CH_COUNT          5U   /* TOM0 CH0-CH4 on P33.10,9,6,7,8 */
 
 #define STEP_TICKS      1000000UL  /* 5 ms at 200 MHz STM */
 #define LED_DIVISOR          20U   /* 20 x 5 ms = 100 ms per counter step */
