@@ -102,7 +102,7 @@ IFX_INTERRUPT(stm0Isr, 0, STM0_ISR_PRIO)
 }
 
 /* -------------------------------------------------------------------------
- * GTM/TOM0-CH2 init  (P33.6, 1 kHz PWM, starts at 0% duty)
+ * GTM/TOM0-CH0..CH4 init  (P33.6-P33.10, 1 kHz PWM, phase-staggered)
  * ---------------------------------------------------------------------- */
 static void initGtmPwm(void)
 {
@@ -132,18 +132,21 @@ static void initGtmPwm(void)
 
     IfxGtm_Tom_Pwm_initConfig(&tomConfig, gtm);
     tomConfig.tom                      = IfxGtm_Tom_0;
-    tomConfig.tomChannel               = IfxGtm_Tom_Ch_2;
     tomConfig.clock                    = IfxGtm_Tom_Ch_ClkSrc_cmuFxclk1;
     tomConfig.period                   = GTM_PERIOD_TICKS;
     tomConfig.dutyCycle                = 0;
     tomConfig.signalLevel              = Ifx_ActiveState_low;
-    tomConfig.synchronousUpdateEnabled = TRUE;   /* use SR1 for runtime updates */
-    tomConfig.pin.outputPin            = &IfxGtm_TOM0_2_TOUT28_P33_6_OUT;
+    tomConfig.synchronousUpdateEnabled = TRUE;
     tomConfig.pin.outputMode           = IfxPort_OutputMode_pushPull;
     tomConfig.pin.padDriver            = IfxPort_PadDriver_cmosAutomotiveSpeed1;
     tomConfig.immediateStartEnabled    = TRUE;
 
-    IfxGtm_Tom_Pwm_init(&tomDriver, &tomConfig);
+    for (i = 0u; i < PWM_CH_COUNT; i++)
+    {
+        tomConfig.tomChannel    = pwmCh[i];
+        tomConfig.pin.outputPin = pwmPin[i];
+        IfxGtm_Tom_Pwm_init(&tomDriver[i], &tomConfig);
+    }
 }
 
 /* -------------------------------------------------------------------------
@@ -172,8 +175,8 @@ void core0_main(void)
     IfxScuWdt_changeCpuWatchdogReload(wdtPassword, WDT_RELOAD);
     IfxScuWdt_disableSafetyWatchdog(IfxScuWdt_getSafetyWatchdogPassword());
 
-    /* Configure all 8 LED pins as GPIO push-pull, all OFF */
-    for (pin = 6; pin <= 13; pin++)
+    /* Configure counter LED pins as GPIO push-pull, all OFF (P33.6-10 owned by GTM) */
+    for (pin = 11; pin <= 13; pin++)
     {
         IfxPort_setPinMode(&MODULE_P33, pin, IfxPort_Mode_outputPushPullGeneral);
         IfxPort_setPinHigh(&MODULE_P33, pin);
@@ -196,8 +199,7 @@ void core0_main(void)
     }
 
     /* Every 500 ms: post work to CPU1 (square) and CPU2 (add), collect results.
-     * Watch in debugger: g_mbCounter, g_squareResult, g_sumResult.
-     * P33.13 turns ON once the square exceeds 100 (i.e. after g_mbCounter >= 11). */
+     * Watch in debugger: g_mbCounter, g_squareResult, g_sumResult. */
     uint64 nextRoundTick = IfxStm_get(&MODULE_STM0) + 100000000ULL; /* 500 ms */
 
     while(1)
@@ -227,12 +229,6 @@ void core0_main(void)
         while (g_mbCpus.cmd[MB_CPU2] != MB_DONE) {}
         g_sumResult             = g_mbCpus.result[MB_CPU2];
         g_mbCpus.cmd[MB_CPU2]   = MB_IDLE;
-
-        /* Use square result to drive the topmost LED (P33.13) */
-        if (g_squareResult > 100u)
-            IfxPort_setPinLow(&MODULE_P33, 13u);   /* ON  */
-        else
-            IfxPort_setPinHigh(&MODULE_P33, 13u);  /* OFF */
 
         g_mbCounter++;
     }
