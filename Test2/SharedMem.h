@@ -2,6 +2,7 @@
 #define SHARED_MEM_H
 
 #include "Ifx_Types.h"
+#include "IfxCpu.h"
 
 /*
  * Three-core mailbox demo  (TC29B, TriBoard TC2X7 V1.0)
@@ -52,5 +53,43 @@ typedef struct {
 } Mailbox;
 
 extern Mailbox g_mbCpus;
+
+/* ==========================================================================
+ * SpinBox — the same request/result demo, but with a symmetric shared
+ * accumulator that all three cores update concurrently.
+ *
+ * Contrast with Mailbox
+ * ---------------------
+ *   Mailbox  : asymmetric — CPU0 is always master; each worker gets its own
+ *              dedicated slot; a plain volatile flag is enough because only
+ *              one writer ever touches each cmd word.
+ *
+ *   SpinBox  : symmetric — any core can call SpinBox_add() at any time;
+ *              all three cores race to update the same total, so a hardware
+ *              CMPSWAP-based mutex is required for correct mutual exclusion.
+ *
+ * Debugger invariant (true whenever no core holds the lock):
+ *   total == perCore[0] + perCore[1] + perCore[2]
+ *
+ * If you remove the SpinBox_add() lock calls and re-run, the invariant will
+ * eventually break — that's the race condition the spinlock prevents.
+ * ==========================================================================
+ */
+typedef struct {
+    IfxCpu_mutexLock lock;        /* 0=free; acquired via CMPSWAP instruction */
+    volatile uint32  total;       /* sum of every core's contributions        */
+    volatile uint32  perCore[3];  /* per-core tally, indexed by CPU ID 0–2   */
+} SpinBox;
+
+/* Acquire the lock, add val to total and perCore[coreId], then release. */
+static inline void SpinBox_add(SpinBox *sb, uint8 coreId, uint32 val)
+{
+    while (!IfxCpu_acquireMutex(&sb->lock)) {}
+    sb->perCore[coreId] += val;
+    sb->total            += val;
+    IfxCpu_releaseMutex(&sb->lock);
+}
+
+extern SpinBox g_spinBox;
 
 #endif /* SHARED_MEM_H */

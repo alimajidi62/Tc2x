@@ -47,5 +47,6 @@ void core1_main(void)
         uint32 a                  = g_mbCpus.inputA[MB_CPU1];
         g_mbCpus.result[MB_CPU1]  = a * a;
         g_mbCpus.cmd[MB_CPU1]     = MB_DONE;
+        SpinBox_add(&g_spinBox, 1u, 1u);
     }
 }

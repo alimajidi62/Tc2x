@@ -46,5 +46,6 @@ void core2_main(void)
 
         g_mbCpus.result[MB_CPU2] = g_mbCpus.inputA[MB_CPU2] + g_mbCpus.inputB[MB_CPU2];
         g_mbCpus.cmd[MB_CPU2]    = MB_DONE;
+        SpinBox_add(&g_spinBox, 2u, 1u);
     }
 }

@@ -50,6 +50,7 @@ volatile uint32 blinkCount = 0;
 
 /* TC29x DSPR is non-cached scratchpad: safe for multi-core access via global bus */
 Mailbox g_mbCpus;
+SpinBox g_spinBox;
 
 /* Results pulled from the mailboxes each round -- watch these in debugger */
 volatile uint32 g_squareResult = 0;   /* CPU1 answer: input*input */
@@ -198,6 +199,12 @@ void core0_main(void)
         g_mbCpus.result[w] = 0u;
     }
 
+    g_spinBox.lock        = 0u;
+    g_spinBox.total       = 0u;
+    g_spinBox.perCore[0u] = 0u;
+    g_spinBox.perCore[1u] = 0u;
+    g_spinBox.perCore[2u] = 0u;
+
     /* Every 500 ms: post work to CPU1 (square) and CPU2 (add), collect results.
      * Watch in debugger: g_mbCounter, g_squareResult, g_sumResult. */
     uint64 nextRoundTick = IfxStm_get(&MODULE_STM0) + 100000000ULL; /* 500 ms */
@@ -230,6 +237,7 @@ void core0_main(void)
         g_sumResult             = g_mbCpus.result[MB_CPU2];
         g_mbCpus.cmd[MB_CPU2]   = MB_IDLE;
 
+        SpinBox_add(&g_spinBox, 0u, 1u);
         g_mbCounter++;
     }
 }
