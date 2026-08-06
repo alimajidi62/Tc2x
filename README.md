@@ -74,6 +74,18 @@ This is one of the most important differences between embedded bare-metal C and 
 | **Stack** | Per-core DSPR, grows downward from a fixed top | Duration of the enclosing function call | CPU stack pointer |
 | **Heap** | A linker-reserved pool; `malloc` / `new` carve from it | Until `free` / `delete` | Programmer |
 
+### Why `Mailbox` and `SpinBox` must be globals
+
+**1. They must outlive every function.**
+Both structs are used across all three cores for the entire runtime. If either were a local variable inside `core0_main`, its memory would belong to CPU0's stack frame. The moment `core0_main` returned (it never does, but hypothetically), that memory would be reclaimed. CPU1 and CPU2 would then be reading garbage.
+
+**2. They must be in a specific, known memory region.**
+On TC29x, inter-core shared data must sit in **non-cached memory** (DSPR scratchpad or LMU). All three TriCore CPUs share the global address bus and can reach DSPR/LMU without cache coherency concerns. If a variable ends up in a cached region, one core's write will sit in its private cache line and the other cores will read the old value from RAM — a silent data corruption that is nearly impossible to debug.
+
+Global variables in this project land in DSPR by default (the linker script places `.bss` / `.data` there). The linker decides the exact address at build time, so the placement is guaranteed and reproducible.
+
+**3. The stack is private to each core.**
+Every TriCore CPU has its own stack in its own DSPR bank. CPU0's stack is invisible to CPU1 and CPU2. Placing a shared struct on CPU0's stack and passing its address to CPU1 would require CPU1 to reach across the global bus into CPU0's DSPR — possible, but the address is dynamic (depends on the call depth at runtime), non-cached only by coincidence, and will crash if CPU0's stack ever grows past that point.
 ---
 
 ## Ethernet / UDP (Test2 — TriBoard TC297 V1.0)
