@@ -58,6 +58,21 @@ CPU0 writes inputs, sets `cmd = MB_REQ`, then polls until the worker sets `cmd =
 - TGC (TOM Global Channel) used to enable all channels atomically
 - Periodic STM ISR for multi-channel PWM duty stepping and 3-bit LED counter
 - PLL / clock configuration (`Ifx_Cfg.h`)
+- Spinlock-based mutual exclusion (`SpinBox` in `SharedMem.h`) vs. plain volatile flag (`Mailbox`)
+
+---
+
+## Memory Layout — Why Shared Variables Are Globals, Not Stack or Heap
+
+This is one of the most important differences between embedded bare-metal C and desktop/application C.
+
+### The three memory regions
+
+| Region | Where | Lifetime | Who owns it |
+|---|---|---|---|
+| **Static / global** | BSS / data segment, placed by linker | Entire program | Compiler + linker |
+| **Stack** | Per-core DSPR, grows downward from a fixed top | Duration of the enclosing function call | CPU stack pointer |
+| **Heap** | A linker-reserved pool; `malloc` / `new` carve from it | Until `free` / `delete` | Programmer |
 
 ---
 
