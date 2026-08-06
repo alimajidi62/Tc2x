@@ -79,7 +79,7 @@ This is one of the most important differences between embedded bare-metal C and 
 **1. They must outlive every function.**
 Both structs are used across all three cores for the entire runtime. If either were a local variable inside `core0_main`, its memory would belong to CPU0's stack frame. The moment `core0_main` returned (it never does, but hypothetically), that memory would be reclaimed. CPU1 and CPU2 would then be reading garbage.
 
-**2. They must be in a specific, known memory region.**
+**2. They must be in a specific, known memory region.**  
 On TC29x, inter-core shared data must sit in **non-cached memory** (DSPR scratchpad or LMU). All three TriCore CPUs share the global address bus and can reach DSPR/LMU without cache coherency concerns. If a variable ends up in a cached region, one core's write will sit in its private cache line and the other cores will read the old value from RAM — a silent data corruption that is nearly impossible to debug.
 
 Global variables in this project land in DSPR by default (the linker script places `.bss` / `.data` there). The linker decides the exact address at build time, so the placement is guaranteed and reproducible.
