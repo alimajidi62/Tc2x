@@ -86,6 +86,23 @@ Global variables in this project land in DSPR by default (the linker script plac
 
 **3. The stack is private to each core.**
 Every TriCore CPU has its own stack in its own DSPR bank. CPU0's stack is invisible to CPU1 and CPU2. Placing a shared struct on CPU0's stack and passing its address to CPU1 would require CPU1 to reach across the global bus into CPU0's DSPR — possible, but the address is dynamic (depends on the call depth at runtime), non-cached only by coincidence, and will crash if CPU0's stack ever grows past that point.
+
+### Why `malloc` / `new` must be avoided in bare-metal embedded
+
+| Problem | Consequence on bare metal |
+|---|---|
+| **Non-deterministic timing** | `malloc` may take a variable number of cycles depending on heap fragmentation. Safety standards (ISO 26262, AUTOSAR) prohibit this in time-critical code. |
+| **No memory protection** | There is no MMU or OS to catch a buffer overrun or a double-free. A bad `free()` silently corrupts the heap and causes a crash minutes later with no traceable cause. |
+| **Tiny heap** | The linker script reserves a small heap (often 2–8 KB). Running out returns `NULL` from `malloc`; on bare metal nothing catches that and the next dereference causes a bus error or silent corruption. |
+| **Cannot control placement** | `malloc` allocates from wherever the linker placed the heap. You cannot guarantee the result is in non-cached LMU, so multi-core shared objects allocated with `malloc` may silently land in a cached region. |
+| **Objects that are never freed** | For permanent singleton objects like `Mailbox` and `SpinBox`, `malloc` achieves exactly the same result as a global — static lifetime, single instance — but adds runtime overhead, a failure mode (`NULL` return), and non-determinism with no benefit. |
+
+### The rule for shared multi-core objects on AURIX
+
+> Declare them as file-scope globals (or with an explicit linker section attribute). Let the linker place them at a fixed, known address in non-cached RAM. Never allocate them on the stack or the heap.
+
+This is not a limitation of C — it is the correct tool for the job. The global lifetime *is* the intended lifetime, and the linker-controlled placement *is* the required placement.
+
 ---
 
 ## Ethernet / UDP (Test2 — TriBoard TC297 V1.0)
