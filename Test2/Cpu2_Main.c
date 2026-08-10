@@ -47,7 +47,15 @@ void core2_main(void)
         while (g_mbCpus.cmd[MB_CPU2] != MB_REQ)
         {
             burn2 = burn2 * 31415u + 1u;
-            burn2 = burn2 * burn2 + 3u;
+            burn2 = burn2 * burn2  + 3u;
+            burn2 = burn2 * 31415u + 5u;
+            burn2 = burn2 * burn2  + 7u;
+            burn2 = burn2 * 31415u + 11u;
+            burn2 = burn2 * burn2  + 13u;
+            burn2 = burn2 * 31415u + 17u;
+            burn2 = burn2 * burn2  + 19u;
+            burn2 = burn2 * 31415u + 23u;
+            burn2 = burn2 * burn2  + 29u;
         }
 
         g_mbCpus.result[MB_CPU2] = g_mbCpus.inputA[MB_CPU2] + g_mbCpus.inputB[MB_CPU2];
