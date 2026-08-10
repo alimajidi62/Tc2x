@@ -166,6 +166,51 @@ ip.src == 192.168.1.200
 
 ---
 
+## Test2 — DTS (Die Temperature Sensor)
+
+The TC29x has a dedicated **Die Temperature Sensor (DTS)** wired directly to the SCU — no external hardware required.  It is completely separate from the VADC; it has its own start/result/busy registers inside `MODULE_SCU`.
+
+### What it does in this project
+
+The DTS raw reading (a 10-bit value) is mapped linearly to the **GTM PWM duty-step size**, so the five-LED sawtooth wave speeds up when the die is hot and slows down when it is cold.  Two debugger watch variables expose the result:
+
+| Variable | Description |
+|---|---|
+| `g_tempRaw` | Raw 10-bit DTS RESULT field (0–1023) |
+| `g_tempDegC` | Integer °C derived from raw value |
+| `g_dutyStep` | Duty increment per 5 ms STM tick (higher = faster wave) |
+
+### Key DTS facts
+
+| Item | Value |
+|---|---|
+| Resolution | 10-bit (0–1023) |
+| Conversion time | ≤ 100 µs |
+| Calibration formula | `temp_°C = raw × 0.467 − 285.5` |
+| First two results | Must be discarded (sensor warm-up) |
+| iLLD header | `Dts/Dts/IfxDts_Dts.h` |
+
+### Duty-step mapping
+
+$$\text{step} = 16 + \frac{T_{°C} \times 234}{100} \quad \text{clamped to } [16,\ 1000]$$
+
+| Temperature | Duty step | Effect |
+|---|---|---|
+| 0 °C | 16 | Very slow wave |
+| 25 °C | ~74 | Near-default speed |
+| 50 °C | ~133 | Twice normal speed |
+| 80 °C | ~203 | Three times normal speed |
+
+### Key concepts demonstrated
+
+- DTS initialisation via `IfxDts_Dts_initModule` / `IfxDts_Dts_startSensor`
+- Polling `IfxDts_Dts_isBusy` for conversion completion (≤ 100 µs)
+- Integer-only temperature calculation from raw register value
+- Using a `volatile` shared variable as a live parameter between the main loop and an ISR on the same core
+- Sensor warm-up: first two readings discarded per iLLD documentation
+
+---
+
 ## Repository Structure
 
 ```
