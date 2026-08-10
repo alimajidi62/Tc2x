@@ -230,10 +230,15 @@ void core0_main(void)
     /* Every 500 ms: post work to CPU1 (square) and CPU2 (add), collect results.
      * Watch in debugger: g_mbCounter, g_squareResult, g_sumResult. */
     uint64 nextRoundTick = IfxStm_get(&MODULE_STM0) + 100000000ULL; /* 500 ms */
+    volatile uint32 burn0 = 1u;
 
     while(1)
     {
         IfxScuWdt_serviceCpuWatchdog(wdtPassword);
+
+        /* burn arithmetic keeps CPU0 hot between 500 ms mailbox rounds */
+        burn0 = burn0 * 31415u + 1u;
+        burn0 = burn0 * burn0 + 3u;
 
         if (IfxStm_get(&MODULE_STM0) < nextRoundTick)
             continue;
