@@ -40,9 +40,15 @@ void core1_main(void)
     IfxCpu_waitEvent(&cpuSyncEvent, 1);
 
     /* CPU1 worker: waits for a request then returns inputA squared */
+    volatile uint32 burn1 = 1u;
     while(1)
     {
-        while (g_mbCpus.cmd[MB_CPU1] != MB_REQ) {}
+        /* arithmetic between polls burns CPU power and raises die temperature */
+        while (g_mbCpus.cmd[MB_CPU1] != MB_REQ)
+        {
+            burn1 = burn1 * 31415u + 1u;
+            burn1 = burn1 * burn1 + 3u;
+        }
 
         uint32 a                  = g_mbCpus.inputA[MB_CPU1];
         g_mbCpus.result[MB_CPU1]  = a * a;
