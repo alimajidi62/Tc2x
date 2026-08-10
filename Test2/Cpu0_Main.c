@@ -234,6 +234,19 @@ void core0_main(void)
             continue;
         nextRoundTick += 100000000ULL;
 
+        /* --- DTS temperature reading ----------------------------------------- */
+        IfxDts_Dts_startSensor();
+        while (IfxDts_Dts_isBusy()) {}
+        g_tempRaw  = IfxDts_Dts_getTemperatureValue();
+        g_tempDegC = (sint16)(((sint32)g_tempRaw * 467L - 285500L) / 1000L);
+        /* map °C linearly to wave speed: 0°C→16 steps, 100°C→250 steps */
+        {
+            sint32 step = 16L + ((sint32)g_tempDegC * 234L) / 100L;
+            if (step <   16) step =   16;
+            if (step > 1000) step = 1000;
+            g_dutyStep = (uint16)step;
+        }
+
         /* --- Post work to CPU1 (square) -------------------------------- */
         g_mbCpus.inputA[MB_CPU1] = g_mbCounter;
         g_mbCpus.inputB[MB_CPU1] = 0u;
