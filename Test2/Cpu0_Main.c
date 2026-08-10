@@ -10,6 +10,7 @@
 #include "IfxPort.h"
 #include "Stm/Std/IfxStm.h"
 #include "Gtm/Tom/Pwm/IfxGtm_Tom_Pwm.h"
+#include "Dts/Dts/IfxDts_Dts.h"
 #include "SharedMem.h"
 
 /*
@@ -29,9 +30,9 @@
  *   Each call: advance all 5 PWM duties one step (~1%).
  *   Every 20 calls (= 100 ms): advance the 3-bit LED counter one step.
  */
-#define GTM_PERIOD_TICKS   6250U
-#define GTM_DUTY_STEP        63U   /* ~1% per 5 ms step */
-#define PWM_CH_COUNT          5U   /* TOM0 CH0-CH4 on P33.10,9,6,7,8 */
+#define GTM_PERIOD_TICKS      6250U
+#define GTM_DUTY_STEP_DEFAULT   63U   /* ~1% per 5 ms at room temperature */
+#define PWM_CH_COUNT             5U   /* TOM0 CH0-CH4 on P33.10,9,6,7,8 */
 
 #define STEP_TICKS      1000000UL  /* 5 ms at 200 MHz STM */
 #define LED_DIVISOR          20U   /* 20 x 5 ms = 100 ms per counter step */
@@ -46,7 +47,10 @@ IfxCpu_syncEvent            cpuSyncEvent = 0;
 static IfxStm_CompareConfig stmConfig;
 
 /* Visible in debugger Watch window */
-volatile uint32 blinkCount = 0;
+volatile uint32 blinkCount  = 0;
+volatile uint16 g_tempRaw   = 0;   /* raw 10-bit DTS RESULT field (0-1023)    */
+volatile sint16 g_tempDegC  = 0;   /* die temperature in integer °C           */
+volatile uint16 g_dutyStep  = GTM_DUTY_STEP_DEFAULT; /* maps temp → wave speed */
 
 /* TC29x DSPR is non-cached scratchpad: safe for multi-core access via global bus */
 Mailbox g_mbCpus;
@@ -77,7 +81,7 @@ IFX_INTERRUPT(stm0Isr, 0, STM0_ISR_PRIO)
     /* --- Sawtooth ramp on all 5 PWM channels, 1/5-period phase stagger --- */
     for (i = 0u; i < PWM_CH_COUNT; i++)
     {
-        duty[i] = (uint16)(duty[i] + GTM_DUTY_STEP);
+        duty[i] = (uint16)(duty[i] + g_dutyStep);
         if (duty[i] >= GTM_PERIOD_TICKS)
             duty[i] = 0u;
     }
@@ -202,6 +206,7 @@ void core0_main(void)
 
     initGtmPwm();       /* P33.6 -> GTM PWM (takes over pin from GPIO) */
     initStmInterrupt(); /* starts 5 ms ISR: PWM duty ramp + LED counter */
+    initDts();          /* warm up die temperature sensor               */
 
     IfxCpu_emitEvent(&cpuSyncEvent);
     IfxCpu_waitEvent(&cpuSyncEvent, 1);
