@@ -163,6 +163,23 @@ static void initStmInterrupt(void)
 }
 
 /* -------------------------------------------------------------------------
+ * DTS init  — discard first two results per iLLD note (sensor warm-up)
+ * ---------------------------------------------------------------------- */
+static void initDts(void)
+{
+    IfxDts_Dts_Config dtsConfig;
+    IfxDts_Dts_initModuleConfig(&dtsConfig);
+    dtsConfig.lowerTemperatureLimit = -40.0f;
+    dtsConfig.upperTemperatureLimit =  150.0f;
+    IfxDts_Dts_initModule(&dtsConfig);
+
+    IfxDts_Dts_startSensor();
+    while (IfxDts_Dts_isBusy()) {}
+    IfxDts_Dts_startSensor();
+    while (IfxDts_Dts_isBusy()) {}
+}
+
+/* -------------------------------------------------------------------------
  * Core 0 entry point
  * ---------------------------------------------------------------------- */
 void core0_main(void)
