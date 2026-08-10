@@ -10,6 +10,8 @@ RM := rm -rf
 -include sources.mk
 -include Libraries/iLLD/TC29B/Tricore/_PinMap/subdir.mk
 -include Libraries/iLLD/TC29B/Tricore/_Impl/subdir.mk
+-include Libraries/iLLD/TC29B/Tricore/Dts/Std/subdir.mk
+-include Libraries/iLLD/TC29B/Tricore/Dts/Dts/subdir.mk
 -include Libraries/iLLD/TC29B/Tricore/Stm/Std/subdir.mk
 -include Libraries/iLLD/TC29B/Tricore/Src/Std/subdir.mk
 -include Libraries/iLLD/TC29B/Tricore/Scu/Std/subdir.mk
