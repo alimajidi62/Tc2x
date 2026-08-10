@@ -238,7 +238,15 @@ void core0_main(void)
 
         /* burn arithmetic keeps CPU0 hot between 500 ms mailbox rounds */
         burn0 = burn0 * 31415u + 1u;
-        burn0 = burn0 * burn0 + 3u;
+        burn0 = burn0 * burn0  + 3u;
+        burn0 = burn0 * 31415u + 5u;
+        burn0 = burn0 * burn0  + 7u;
+        burn0 = burn0 * 31415u + 11u;
+        burn0 = burn0 * burn0  + 13u;
+        burn0 = burn0 * 31415u + 17u;
+        burn0 = burn0 * burn0  + 19u;
+        burn0 = burn0 * 31415u + 23u;
+        burn0 = burn0 * burn0  + 29u;
 
         if (IfxStm_get(&MODULE_STM0) < nextRoundTick)
             continue;
