@@ -47,7 +47,15 @@ void core1_main(void)
         while (g_mbCpus.cmd[MB_CPU1] != MB_REQ)
         {
             burn1 = burn1 * 31415u + 1u;
-            burn1 = burn1 * burn1 + 3u;
+            burn1 = burn1 * burn1  + 3u;
+            burn1 = burn1 * 31415u + 5u;
+            burn1 = burn1 * burn1  + 7u;
+            burn1 = burn1 * 31415u + 11u;
+            burn1 = burn1 * burn1  + 13u;
+            burn1 = burn1 * 31415u + 17u;
+            burn1 = burn1 * burn1  + 19u;
+            burn1 = burn1 * 31415u + 23u;
+            burn1 = burn1 * burn1  + 29u;
         }
 
         uint32 a                  = g_mbCpus.inputA[MB_CPU1];
