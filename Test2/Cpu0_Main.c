@@ -303,6 +303,15 @@ void core0_main(void)
             g_dutyStep = (uint16)step;
         }
 
+        /* --- CAN TX: temperature frame ID=0x700, DLC=4 ------------------ */
+        {
+            IfxMultican_Message txMsg;
+            /* dataLow bytes 0-1: g_tempDegC (°C), bytes 2-3: g_tempRaw (ADC) */
+            uint32 dataLow = (uint32)(uint16)g_tempDegC | ((uint32)g_tempRaw << 16);
+            IfxMultican_Message_init(&txMsg, 0x700, dataLow, 0, IfxMultican_DataLengthCode_4);
+            IfxMultican_Can_MsgObj_sendMessage(&g_canTxObj, &txMsg);
+        }
+
         /* --- Post work to CPU1 (square) -------------------------------- */
         g_mbCpus.inputA[MB_CPU1] = g_mbCounter;
         g_mbCpus.inputB[MB_CPU1] = 0u;
