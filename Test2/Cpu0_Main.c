@@ -172,6 +172,38 @@ static void initStmInterrupt(void)
 }
 
 /* -------------------------------------------------------------------------
+ * CAN0 Node 0 init — 500 kBaud, TX=P20.8, RX=P20.7, TX MsgObj 0, ID 0x700
+ * ---------------------------------------------------------------------- */
+static void initCan(void)
+{
+    IfxMultican_Can_Config        canConfig;
+    IfxMultican_Can_NodeConfig    nodeConfig;
+    IfxMultican_Can_MsgObjConfig  msgObjConfig;
+
+    IfxMultican_Can_initModuleConfig(&canConfig, &MODULE_CAN);
+    IfxMultican_Can_initModule(&g_can, &canConfig);
+
+    IfxMultican_Can_Node_initConfig(&nodeConfig, &g_can);
+    nodeConfig.nodeId    = IfxMultican_NodeId_0;
+    nodeConfig.baudrate  = 500000;   /* 500 kBaud */
+    nodeConfig.rxPin     = &IfxMultican_RXD0B_P20_7_IN;
+    nodeConfig.rxPinMode = IfxPort_InputMode_pullUp;
+    nodeConfig.txPin     = &IfxMultican_TXD0_P20_8_OUT;
+    nodeConfig.txPinMode = IfxPort_OutputMode_pushPull;
+    IfxMultican_Can_Node_init(&g_canNode, &nodeConfig);
+
+    IfxMultican_Can_MsgObj_initConfig(&msgObjConfig, &g_canNode);
+    msgObjConfig.msgObjId               = 0;
+    msgObjConfig.messageId              = 0x700;
+    msgObjConfig.acceptanceMask         = 0x7FFFFFFFUL;
+    msgObjConfig.frame                  = IfxMultican_Frame_transmit;
+    msgObjConfig.control.messageLen     = IfxMultican_DataLengthCode_4;
+    msgObjConfig.control.extendedFrame  = FALSE;
+    msgObjConfig.control.matchingId     = TRUE;
+    IfxMultican_Can_MsgObj_init(&g_canTxObj, &msgObjConfig);
+}
+
+/* -------------------------------------------------------------------------
  * DTS init  — discard first two results per iLLD note (sensor warm-up)
  * ---------------------------------------------------------------------- */
 static void initDts(void)
