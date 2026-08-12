@@ -11,6 +11,7 @@
 #include "Stm/Std/IfxStm.h"
 #include "Gtm/Tom/Pwm/IfxGtm_Tom_Pwm.h"
 #include "Dts/Dts/IfxDts_Dts.h"
+#include "Multican/Can/IfxMultican_Can.h"
 #include "SharedMem.h"
 
 /*
