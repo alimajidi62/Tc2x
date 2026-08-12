@@ -197,7 +197,7 @@ static void initCan(void)
     msgObjConfig.messageId              = 0x700;
     msgObjConfig.acceptanceMask         = 0x7FFFFFFFUL;
     msgObjConfig.frame                  = IfxMultican_Frame_transmit;
-    msgObjConfig.control.messageLen     = IfxMultican_DataLengthCode_4;
+    msgObjConfig.control.messageLen     = IfxMultican_DataLengthCode_8;
     msgObjConfig.control.extendedFrame  = FALSE;
     msgObjConfig.control.matchingId     = TRUE;
     IfxMultican_Can_MsgObj_init(&g_canTxObj, &msgObjConfig);
