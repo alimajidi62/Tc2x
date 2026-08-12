@@ -224,9 +224,9 @@ Once per 500 ms tick (the same tick that reads the DTS), CPU0 packs the latest t
 | Field | Value |
 |---|---|
 | CAN ID | `0x700` (standard 11-bit) |
-| DLC | 4 bytes |
-| Byte 0–1 | `g_tempDegC` — signed integer °C (little-endian) |
-| Byte 2–3 | `g_tempRaw` — raw 10-bit DTS ADC value |
+| DLC | 8 bytes |
+| `data[0]` (bytes 0–3) | `g_tempDegC` — signed integer °C |
+| `data[1]` (bytes 4–7) | `0x54656D70` — ASCII label **`"Temp"`** (T e m p) |
 
 ### Hardware
 
