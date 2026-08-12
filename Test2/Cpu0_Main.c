@@ -303,12 +303,12 @@ void core0_main(void)
             g_dutyStep = (uint16)step;
         }
 
-        /* --- CAN TX: temperature frame ID=0x700, DLC=4 ------------------ */
+        /* --- CAN TX: temperature frame ID=0x700, DLC=8 ------------------ */
         {
             IfxMultican_Message txMsg;
-            /* dataLow bytes 0-1: g_tempDegC (°C), bytes 2-3: g_tempRaw (ADC) */
-            uint32 dataLow = (uint32)(uint16)g_tempDegC | ((uint32)g_tempRaw << 16);
-            IfxMultican_Message_init(&txMsg, 0x700, dataLow, 0, IfxMultican_DataLengthCode_4);
+            uint32 dataLow  = (uint32)(uint16)g_tempDegC;                                          /* data[0]: Temperature (°C) */
+            uint32 dataHigh = ((uint32)'T'<<24)|((uint32)'e'<<16)|((uint32)'m'<<8)|(uint32)'p';   /* data[1]: "Temp" ASCII label */
+            IfxMultican_Message_init(&txMsg, 0x700, dataLow, dataHigh, IfxMultican_DataLengthCode_8);
             IfxMultican_Can_MsgObj_sendMessage(&g_canTxObj, &txMsg);
         }
 
