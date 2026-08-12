@@ -244,6 +244,7 @@ void core0_main(void)
     initGtmPwm();       /* P33.6 -> GTM PWM (takes over pin from GPIO) */
     initStmInterrupt(); /* starts 5 ms ISR: PWM duty ramp + LED counter */
     initDts();          /* warm up die temperature sensor               */
+    initCan();          /* CAN0 Node0, 500 kBaud, TX MsgObj 0           */
 
     IfxCpu_emitEvent(&cpuSyncEvent);
     IfxCpu_waitEvent(&cpuSyncEvent, 1);
