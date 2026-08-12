@@ -62,6 +62,10 @@ volatile uint32 g_squareResult = 0;   /* CPU1 answer: input*input */
 volatile uint32 g_sumResult    = 0;   /* CPU2 answer: inputA+inputB */
 volatile uint32 g_mbCounter    = 0;   /* how many rounds completed */
 
+static IfxMultican_Can        g_can;
+static IfxMultican_Can_Node   g_canNode;
+static IfxMultican_Can_MsgObj g_canTxObj;
+
 /* -------------------------------------------------------------------------
  * STM0 ISR  (fires every STEP_TICKS = 5 ms)
  *   - Updates all 5 GTM PWM duties via SR1 shadow registers (phased sawtooth)
