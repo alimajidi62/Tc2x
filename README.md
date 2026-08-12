@@ -249,6 +249,147 @@ Once per 500 ms tick (the same tick that reads the DTS), CPU0 packs the latest t
 
 ---
 
+## Sending More Than 8 Bytes Over CAN (Future Reference)
+
+Classic CAN is limited to **8 bytes per frame**.  When a payload — such as a descriptive string — is longer than 8 bytes, three strategies are available:
+
+### Option 1 — Abbreviate (simplest)
+Shorten the label so it fits alongside the value in one 8-byte frame.  
+Example: `data[0]` = temperature °C, `data[1]` = `"TmpCPU "` (7 ASCII chars + null).  
+**Use when:** the receiver is a simple CAN logger or oscilloscope and no extra protocol overhead is acceptable.
+
+### Option 2 — Custom multi-frame
+Split the payload across consecutive CAN frames.  Reserve byte 0 of each frame as a sequence counter; bytes 1–7 carry data.
+
+```
+Frame 1:  [0x01]["Tempera"]
+Frame 2:  [0x02]["ture of"]
+Frame 3:  [0x03][" the CP"]
+Frame 4:  [0x04]["U every"]
+Frame 5:  [0x05][" 500 ms"]
+```
+
+No handshake — the sender fires all frames back-to-back and the receiver reassembles them by sequence number.  
+**Use when:** both sender and receiver are custom code you control and you want minimal complexity.
+
+### Option 3 — ISO 15765-2 (CAN Transport Protocol)
+
+> **Standard:** ISO 15765-2:2016 — *Road vehicles — Diagnostic communication over Controller Area Network (DoCAN) — Part 2: Transport protocol and network layer services*  
+> **Published by:** International Organization for Standardization (ISO)  
+> **Related standards:** ISO 15765-1 (general), ISO 15765-3 (implementation), ISO 14229 (UDS — built on top of this layer)
+
+The **automotive standard** for multi-frame CAN messages.  Used by OBD-II, UDS (ISO 14229), and all modern ECU diagnostics.  Supported natively by tools such as CANalyzer, PCAN-View, and any UDS tester.
+
+#### Frame types
+
+| Type | Byte 0 | Purpose |
+|---|---|---|
+| Single Frame (SF) | `0x0N` (N = length) | Payload ≤ 7 bytes — sent as one frame |
+| First Frame (FF) | `0x1H 0xLL` (12-bit total length) | Starts a long message, carries first 6 bytes |
+| Consecutive Frame (CF) | `0x2N` (N = sequence 1–F) | Carries next 7 bytes; sequence wraps 1→F→1 |
+| Flow Control (FC) | `0x30` | Sent **by the receiver** — grants permission to continue |
+
+#### Transmission sequence for `"Temperature of the CPU every 500 millisecond"` (44 bytes)
+
+```
+Sender (TC29B)                              Receiver (PC / ECU)
+────────────────────────────────────────────────────────────────
+First Frame    →  10 2C | 54 65 6D 70 65 72    ("Temper")
+                                           ←   Flow Control: 30 00 00 CC CC CC CC CC
+Consecutive 1  →  21 | 61 74 75 72 65 20 6F    ("ature o")
+Consecutive 2  →  22 | 66 20 74 68 65 20 43    ("f the C")
+Consecutive 3  →  23 | 50 55 20 65 76 65 72    ("PU ever")
+Consecutive 4  →  24 | 79 20 35 30 30 20 6D    ("y 500 m")
+Consecutive 5  →  25 | 69 6C 6C 69 73 65 63    ("illisec")
+Consecutive 6  →  26 | 6F 6E 64 CC CC CC CC    ("ond" + 4 padding bytes)
+```
+
+#### Byte-level breakdown — every frame on the bus
+
+| Frame | Dir | B0 | B1 | B2 | B3 | B4 | B5 | B6 | B7 |
+|---|---|---|---|---|---|---|---|---|---|
+| First Frame | Sender → | `10` PCI hi | `2C` len=44 | `54` **T** | `65` **e** | `6D` **m** | `70` **p** | `65` **e** | `72` **r** |
+| Flow Control | ← Receiver | `30` CTS | `00` BS=0 | `00` STmin | `CC` pad | `CC` pad | `CC` pad | `CC` pad | `CC` pad |
+| CF seq=1 | Sender → | `21` | `61` **a** | `74` **t** | `75` **u** | `72` **r** | `65` **e** | `20` **·** | `6F` **o** |
+| CF seq=2 | Sender → | `22` | `66` **f** | `20` **·** | `74` **t** | `68` **h** | `65` **e** | `20` **·** | `43` **C** |
+| CF seq=3 | Sender → | `23` | `50` **P** | `55` **U** | `20` **·** | `65` **e** | `76` **v** | `65` **e** | `72` **r** |
+| CF seq=4 | Sender → | `24` | `79` **y** | `20` **·** | `35` **5** | `30` **0** | `30` **0** | `20` **·** | `6D` **m** |
+| CF seq=5 | Sender → | `25` | `69` **i** | `6C` **l** | `6C` **l** | `69` **i** | `73` **s** | `65` **e** | `63` **c** |
+| CF seq=6 | Sender → | `26` | `6F` **o** | `6E` **n** | `64` **d** | `CC` pad | `CC` pad | `CC` pad | `CC` pad |
+
+**Key:**  `·` = space character (0x20) · `pad` = `0xCC` fill (ISO 15765-2 padding convention) · `CTS` = Continue To Send · `BS` = Block Size · `STmin` = Separation Time minimum
+
+**Total frames on bus: 8** (6 sender + 1 FC from receiver, excluding the First Frame acknowledgement implied by FC)
+
+#### Important: the receiver must participate
+The sender **pauses after the First Frame** and waits for the Flow Control frame before sending Consecutive Frames.  The receiver must implement the ISO 15765-2 state machine (or use a tool that does it automatically).
+
+#### Sender state machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> IDLE
+
+    IDLE --> SEND_SF : data ≤ 7 bytes
+    SEND_SF --> IDLE : Single Frame transmitted
+
+    IDLE --> SEND_FF : data > 7 bytes
+    SEND_FF --> WAIT_FC : First Frame transmitted
+
+    WAIT_FC --> SEND_CF : Flow Control received\n(ContinueToSend)
+    WAIT_FC --> IDLE : FC = Abort received
+    WAIT_FC --> IDLE : N_Bs timeout expired
+
+    SEND_CF --> SEND_CF : Consecutive Frame sent,\nmore data remaining
+    SEND_CF --> IDLE : last Consecutive Frame sent\n(all data transmitted)
+```
+
+#### Receiver state machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> IDLE
+
+    IDLE --> DELIVER : Single Frame received
+    DELIVER --> IDLE : data passed to application
+
+    IDLE --> SEND_FC : First Frame received\n(buffer available)
+    SEND_FC --> WAIT_CF : Flow Control (ContinueToSend) sent
+
+    WAIT_CF --> WAIT_CF : Consecutive Frame received,\nsequence OK, more expected
+    WAIT_CF --> DELIVER : last Consecutive Frame received\n(all segments assembled)
+    DELIVER --> IDLE : data passed to application
+
+    WAIT_CF --> IDLE : N_Cr timeout expired
+    WAIT_CF --> IDLE : wrong sequence number received
+    IDLE --> IDLE : First Frame received\n(no buffer — send FC Overflow)
+```
+
+#### State and timer glossary
+
+| Symbol | Meaning |
+|---|---|
+| `N_Bs` | Sender timeout waiting for Flow Control (typ. 1000 ms) |
+| `N_Cr` | Receiver timeout waiting for next Consecutive Frame (typ. 1000 ms) |
+| `BlockSize` | How many Consecutive Frames the receiver accepts before requiring another FC (0 = send all) |
+| `SeparationTime (STmin)` | Minimum gap the sender must leave between Consecutive Frames (0–127 ms, or 100–900 µs) |
+
+**Use when:** the receiver is a UDS tester, CANalyzer, or any automotive diagnostic tool — or when you are building a system that must interoperate with standard automotive equipment.
+
+### Comparison
+
+| | Option 1 | Option 2 | Option 3 |
+|---|---|---|---|
+| Max payload | 7 bytes | Unlimited | Unlimited |
+| Receiver requirement | Any CAN tool | Custom parser | ISO 15765-2 stack |
+| Tool support | All | Custom only | All automotive tools |
+| Complexity | None | Low | Medium |
+| Best for | Simple telemetry | Internal/proprietary | Automotive / UDS / OBD |
+
+> **TC29B limitation:** CAN FD (up to 64 bytes per frame) is **not supported** — it is only available on the 2nd-generation AURIX TC3xx.  All three options above work within the classic CAN 8-byte limit.
+
+---
+
 ## Repository Structure
 
 ```
