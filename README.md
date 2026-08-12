@@ -211,6 +211,44 @@ $$\text{step} = 16 + \frac{T_{°C} \times 234}{100} \quad \text{clamped to } [16
 
 ---
 
+## Test2 — CAN Temperature Transmission (MULTICAN)
+
+The TC29B integrates a **MULTICAN** controller with two independent CAN modules (CAN0: 4 nodes, CAN1/CANR: 2 nodes).  This project uses **CAN0 Node 0** to broadcast the die temperature over a standard CAN bus at 500 kBaud every **500 ms**.
+
+### What it does
+
+Once per 500 ms tick (the same tick that reads the DTS), CPU0 packs the latest temperature values into a 4-byte CAN frame and transmits it non-blocking on CAN0 Node 0.
+
+### CAN frame
+
+| Field | Value |
+|---|---|
+| CAN ID | `0x700` (standard 11-bit) |
+| DLC | 4 bytes |
+| Byte 0–1 | `g_tempDegC` — signed integer °C (little-endian) |
+| Byte 2–3 | `g_tempRaw` — raw 10-bit DTS ADC value |
+
+### Hardware
+
+| Item | Value |
+|---|---|
+| Module | CAN0 (`MODULE_CAN`) |
+| Node | Node 0 |
+| Baud rate | 500 kBaud |
+| TX pin | P20.8 (`IfxMultican_TXD0_P20_8_OUT`) |
+| RX pin | P20.7 (`IfxMultican_RXD0B_P20_7_IN`) |
+
+> A CAN transceiver (e.g. TJA1050 or equivalent) must be connected between P20.8 / P20.7 and the bus differential pair (CANH / CANL).
+
+### Key concepts demonstrated
+
+- MULTICAN module and node initialisation via `IfxMultican_Can_initModule` / `IfxMultican_Can_Node_init`
+- Transmit message object configuration (`IfxMultican_Can_MsgObj_init`)
+- Non-blocking periodic CAN frame transmission with `IfxMultican_Can_MsgObj_sendMessage`
+- Packing two related values (`sint16` °C + `uint16` raw ADC) into the 4-byte CAN payload
+
+---
+
 ## Repository Structure
 
 ```
